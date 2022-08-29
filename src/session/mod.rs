@@ -368,6 +368,26 @@ impl Session {
         }
     }
 
+    pub(crate) fn cancel_file_download(&self, file_id: i32) {
+        let mut downloading_files = self.imp().downloading_files.borrow_mut();
+
+        if let Some(senders) = downloading_files.remove(&file_id) {
+            let client_id = self.client_id();
+
+            spawn(async move {
+                _ = functions::cancel_download_file(file_id, false, client_id).await;
+                _ = functions::delete_file(file_id, client_id).await;
+                let result = functions::get_file(file_id, client_id).await;
+
+                if let Ok(enums::File::File(file)) = result {
+                    senders.iter().for_each(|sender| {
+                        _ = sender.send(file.clone());
+                    });
+                }
+            });
+        }
+    }
+
     pub(crate) fn select_chat(&self, chat_id: i64) {
         let imp = self.imp();
         let chat = self.chat_list().get(chat_id);
