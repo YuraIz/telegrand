@@ -1,5 +1,6 @@
 mod base;
 mod bubble;
+mod document;
 mod indicators;
 mod indicators_model;
 mod label;
@@ -12,6 +13,7 @@ mod text;
 
 use self::base::{MessageBase, MessageBaseExt, MessageBaseImpl};
 use self::bubble::MessageBubble;
+use self::document::MessageDocument;
 use self::indicators::MessageIndicators;
 use self::label::MessageLabel;
 use self::media::Media;
@@ -263,6 +265,9 @@ impl MessageRow {
                     ) =>
                 {
                     self.update_specific_content::<_, MessageSticker>(message_.clone());
+                }
+                MessageContent::MessageDocument(_) => {
+                    self.update_specific_content::<_, MessageDocument>(message_.clone());
                 }
                 _ => {
                     self.update_specific_content::<_, MessageText>(message);
