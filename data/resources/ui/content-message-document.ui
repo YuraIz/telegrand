@@ -20,21 +20,55 @@
       </object>
     </child>
     <child>
-      <object class="AdwActionRow" id="file_row">
-        <property name="title">file_name.jpg</property>
-        <property name="subtitle">100 KB JPG</property>
-        <child type="prefix">
-          <object class="GtkButton" id="file_button">
-            <property name="valign">center</property>
-            <property name="halign">center</property>
+      <object class="GtkBox">
+        <property name="margin-start">6</property>
+        <property name="margin-end">6</property>
+        <property name="margin-top">6</property>
+        <property name="margin-bottom">6</property>
+        <property name="spacing">6</property>
+        <child>
+          <object class="GtkButton" id="file_status">
             <style>
               <class name="circular" />
+              <class name="osd" />
             </style>
+            <property name="valign">center</property>
+            <property name="height-request">50</property>
+            <property name="width-request">50</property>
+            <property name="icon-name">window-close-symbolic</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="valign">center</property>
+            <property name="hexpand">true</property>
+            <property name="orientation">vertical</property>
             <child>
-              <object class="AdwAvatar" id="file_status">
-                <property name="icon-name">small-x</property>
-                <property name="text">g</property>
-                <property name="size">50</property>
+              <object class="GtkLabel" id="file_name">
+                <style>
+                  <class name="heading" />
+                </style>
+                <property name="halign">start</property>
+                <property name="ellipsize">middle</property>
+                <property name="label">file_name.jpg</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel" id="file_size">
+                <style>
+                  <class name="caption" />
+                </style>
+                <property name="halign">start</property>
+                <property name="label">100 KB</property>
+              </object>
+            </child>
+            <child>
+              <object class="MessageIndicators">
+                <property name="message" bind-source="indicators" bind-property="message" />
+                <property name="visible" bind-source="content_label" bind-property="visible" bind-flags="sync-create|invert-boolean" />
+                <property name="opacity">0.7</property>
+                <property name="halign">end</property>
+                <property name="valign">end</property>
               </object>
             </child>
           </object>

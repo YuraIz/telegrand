@@ -1,15 +1,11 @@
-use adw::traits::{ActionRowExt, PreferencesRowExt};
-use glib::clone;
+use glib::{clone, format_size};
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use gtk::{glib, CompositeTemplate};
+use gtk::{gio, glib, CompositeTemplate};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
 use tdlib::enums::MessageContent;
 use tdlib::types::File;
-use gtk::gio;
-
 
 use crate::session::content::message_row::{
     MessageBase, MessageBaseImpl, MessageIndicators, MessageLabel,
@@ -38,11 +34,11 @@ mod imp {
         #[template_child]
         pub(super) indicators: TemplateChild<MessageIndicators>,
         #[template_child]
-        pub(super) file_row: TemplateChild<adw::ActionRow>,
+        pub(super) file_name: TemplateChild<gtk::Label>,
         #[template_child]
-        pub(super) file_status: TemplateChild<adw::Avatar>,
+        pub(super) file_size: TemplateChild<gtk::Label>,
         #[template_child]
-        pub(super) file_button: TemplateChild<gtk::Button>,
+        pub(super) file_status: TemplateChild<gtk::Button>,
     }
 
     #[glib::object_subclass]
@@ -63,12 +59,6 @@ mod imp {
     impl ObjectImpl for MessageDocument {
         fn constructed(&self, obj: &Self::Type) {
             self.parent_constructed(obj);
-
-            // Connect to "clicked" signal of `button`
-            // self.button.connect_clicked(move |button| {
-            //     // Set the label to "Hello World!" after the button has been clicked on
-            //     button.set_label("Hello World!");
-            // });
         }
 
         fn properties() -> &'static [glib::ParamSpec] {
@@ -209,97 +199,81 @@ impl MessageDocument {
             let imp = self.imp();
 
             let message_text = parse_formatted_text(data.caption);
+            imp.content_label.set_visible(!message_text.is_empty());
             imp.content_label.set_label(message_text);
 
-            let file_name = shorten_string(data.document.file_name);
-            imp.file_row.set_title(&file_name);
+            imp.file_name.set_label(&data.document.file_name);
 
-            let file_size = human_readable_size(data.document.document.size);
-            imp.file_row.set_subtitle(&file_size);
+            let session = message.chat().session();
 
-            let document_local = &data.document.document.local;
-
-            if document_local.is_downloading_completed {
-                imp.file_status
-                    .set_icon_name(Some("folder-documents-symbolic"));
-
-                let gio_file = gio::File::for_path(&document_local.path);
-
-                imp.file_button.connect_clicked(move |_|{
-                    gio::AppInfo::launch_default_for_uri(&gio_file.uri(), Option::<&gio::AppLaunchContext>::None).ok();
-                });
-
-            } else if !document_local.is_downloading_active {
-                imp.file_status
-                    .set_icon_name(Some("document-save-symbolic"));
-
-                let id = data.document.document.id;
-
-                let session = Rc::new(message.chat().session());
-
-                imp.file_button.connect_clicked(
-                    clone!(@weak self as this, @strong session => move |_| {
-                        this.download_document(id, &session);
-                    }),
-                );
-            }
+            self.update_status(data.document.document, session);
         }
     }
 
-    fn download_document(&self, file_id: i32, session: &Session) {
-        println!("downloading");
+    fn update_status(&self, document: File, session: Session) {
+        let local = &document.local;
+        let imp = self.imp();
 
-        let (sender, receiver) = glib::MainContext::sync_channel::<File>(Default::default(), 5);
+        if local.is_downloading_completed {
+            imp.file_status.set_icon_name("folder-documents-symbolic");
+            imp.file_size
+                .set_label(&format_size(local.downloaded_size as u64));
 
-        receiver.attach(
-            None,
-            clone!(@weak self as obj => @default-return glib::Continue(false), move |file| {
-                let imp = obj.imp();
+            let path = local.path.clone();
+            let gio_file = gio::File::for_path(&path);
 
-                if file.local.is_downloading_completed {
-                    imp.file_status.set_icon_name(Some("folder-documents-symbolic"));
-                    imp.file_row.set_subtitle(human_readable_size(file.local.downloaded_size).as_str());
+            imp.file_status.connect_clicked(move |_| {
+                gio::AppInfo::launch_default_for_uri(
+                    &gio_file.uri(),
+                    Option::<&gio::AppLaunchContext>::None,
+                )
+                .ok();
+            });
+        } else if !local.is_downloading_active {
+            imp.file_status.set_icon_name("document-save-symbolic");
 
-                    println!("Downloaded file path: {}", &file.local.path);
-                    
-                    let gio_file = gio::File::for_path(file.local.path);
+            let file_size = if document.size != 0 {
+                document.size as u64
+            } else {
+                document.expected_size as u64
+            };
 
-                    imp.file_button.connect_clicked(move |_|{
-                        gio::AppInfo::launch_default_for_uri(&gio_file.uri(), Option::<&gio::AppLaunchContext>::None).ok();
-                    });
-                } else {
-                    let progress = file.local.downloaded_size as f64 / file.expected_size as f64;
-                    
-                    imp.file_row.set_subtitle(format!("Downloading: {}% of {}", progress * 100.0, human_readable_size(file.expected_size)).as_str());
-                }
+            imp.file_size.set_label(&format_size(file_size));
 
-                glib::Continue(true)
-            }),
-        );
+            let id = document.id;
 
-        session.download_file(file_id, sender);
-    }
-}
+            imp.file_status.connect_clicked(
+                clone!(@weak self as obj, @strong session => move |_| {
+                    let (sender, receiver) = glib::MainContext::sync_channel::<File>(Default::default(), 5);
+                    receiver.attach(
+                        None,
+                        clone!(@weak obj, @weak session => @default-return glib::Continue(false), move |file| {
+                            obj.update_status(file, session);
 
-fn shorten_string(name: String) -> String {
-    match name.chars().count() {
-        0..=47 => name,
-        len => {
-            let start = name.chars().take(22);
-            let end = name.chars().skip(len - 22);
-            String::from_iter(start.chain("...".chars()).chain(end))
+                            glib::Continue(true)
+                        }));
+
+                    session.download_file(id, sender);
+                }),
+            );
+        } else if local.is_downloading_active {
+            // I don't know how to cancel downloading
+            imp.file_status.set_icon_name("window-close-symbolic");
+            imp.file_status.connect_clicked(|_| {});
+
+            // Temp working indicator
+            imp.file_status.set_icon_name("process-working-symbolic");
+
+            let progress = local.downloaded_size as f64 / document.expected_size as f64;
+
+            imp.file_size.set_label(
+                format!(
+                    "{:.0}% of {}",
+                    progress * 100.0,
+                    format_size(document.expected_size as u64)
+                )
+                .as_str(),
+            );
         }
     }
-}
-
-fn human_readable_size(file_size: i32) -> String {
-    let suffix = ["B", "KB", "MB", "GB"]; // Need to localize this
-    let index = match file_size.leading_zeros() {
-        22..=32 => 0,
-        12..=21 => 1,
-        2..=11 => 2,
-        _ => 3,
-    };
-
-    format!("{} {} ", file_size >> (10 * index), suffix[index])
 }
