@@ -148,6 +148,23 @@ sidebarsearchitemrow {
   color: @accent_fg_color;
 }
 
+messagedocument > box {
+  margin-right: 6px;
+}
+
+messagedocument > box > button {
+  background: @accent_color;
+  color: @window_bg_color;
+  min-width: 40px;
+  min-height: 40px;
+  margin: 6px;
+}
+
+messagedocument.outgoing > box > button {
+  background: @accent_fg_color;
+  color: @accent_bg_color;
+}
+
 messagemedia .media-picture {
   margin: 2px;
   border-radius: 10px;

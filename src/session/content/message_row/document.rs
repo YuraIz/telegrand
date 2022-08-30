@@ -49,6 +49,7 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             Self::bind_template(klass);
+            klass.set_css_name("messagedocument");
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -243,36 +244,36 @@ impl MessageDocument {
             let id = document.id;
 
             imp.file_status.connect_clicked(
-                clone!(@weak self as obj, @strong session => move |_| {
+                clone!(@weak self as obj, @strong session => move |file_status| {
+
+                    // I don't know how to cancel downloading
+                    file_status.set_icon_name("media-playback-stop-symbolic");
+                    file_status.connect_clicked(|_| {});
+
                     let (sender, receiver) = glib::MainContext::sync_channel::<File>(Default::default(), 5);
                     receiver.attach(
                         None,
                         clone!(@weak obj, @weak session => @default-return glib::Continue(false), move |file| {
-                            obj.update_status(file, session);
+                            if file.local.is_downloading_completed {
+                                obj.update_status(file, session);
+                                glib::Continue(false)
+                            } else {
+                                let progress = file.local.downloaded_size as f64 / file.expected_size as f64;
 
-                            glib::Continue(true)
+                                obj.imp().file_size.set_label(
+                                    format!(
+                                        "{:.0}% of {}",
+                                        progress * 100.0,
+                                        format_size(document.expected_size as u64)
+                                    )
+                                    .as_str(),
+                                );
+                                glib::Continue(true)
+                            }
                         }));
 
                     session.download_file(id, sender);
                 }),
-            );
-        } else if local.is_downloading_active {
-            // I don't know how to cancel downloading
-            imp.file_status.set_icon_name("window-close-symbolic");
-            imp.file_status.connect_clicked(|_| {});
-
-            // Temp working indicator
-            imp.file_status.set_icon_name("process-working-symbolic");
-
-            let progress = local.downloaded_size as f64 / document.expected_size as f64;
-
-            imp.file_size.set_label(
-                format!(
-                    "{:.0}% of {}",
-                    progress * 100.0,
-                    format_size(document.expected_size as u64)
-                )
-                .as_str(),
             );
         }
     }
