@@ -367,6 +367,26 @@ impl Session {
         }
     }
 
+    pub(crate) fn cancel_download_file(&self, file_id: i32) {
+        let mut downloading_files = self.imp().downloading_files.borrow_mut();
+        if let Entry::Occupied(entry) = downloading_files.entry(file_id) {
+            if let Some(sender) = entry.remove().first() {
+                let sender = sender.clone();
+                let client_id = self.client_id();
+
+                spawn(clone!(@weak self as obj => async move {
+                _ = functions::cancel_download_file(file_id, false, client_id).await;
+                _ = functions::delete_file(file_id, client_id).await;
+                let result = functions::get_file(file_id, client_id).await;
+
+                if let Ok(enums::File::File(file)) = result {
+                    _ = sender.send(file);
+                }
+                }));
+            }
+        }
+    }
+
     pub(crate) fn select_chat(&self, chat_id: i64) {
         let imp = self.imp();
         let chat = self.chat_list().get(chat_id);

@@ -1,4 +1,5 @@
 use glib::{clone, format_size};
+use gtk::glib::SignalHandlerId;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib, CompositeTemplate};
@@ -26,6 +27,7 @@ mod imp {
     pub(crate) struct MessageDocument {
         pub(super) sender_color_class: RefCell<Option<String>>,
         pub(super) bindings: RefCell<Vec<gtk::ExpressionWatch>>,
+        pub(super) status_handler_id: RefCell<Option<SignalHandlerId>>,
         pub(super) message: RefCell<Option<glib::Object>>,
         #[template_child]
         pub(super) sender_label: TemplateChild<gtk::Label>,
@@ -194,6 +196,39 @@ impl MessageBaseExt for MessageDocument {
     }
 }
 
+#[derive(PartialEq)]
+enum FileStatus {
+    Downloading(f64),
+    Uploading(f64),
+    CanBeDownloaded,
+    Downloaded,
+}
+use FileStatus::*;
+
+impl From<&File> for FileStatus {
+    fn from(file: &File) -> Self {
+        let local = &file.local;
+        let remote = &file.remote;
+
+        let size = file.size.max(file.expected_size) as u64;
+
+        if local.is_downloading_active {
+            let progress = local.downloaded_size as f64 / size as f64;
+            Downloading(progress)
+        } else if remote.is_uploading_active {
+            let progress = remote.uploaded_size as f64 / size as f64;
+            Uploading(progress)
+        } else if local.is_downloading_completed {
+            Downloaded
+        } else if local.can_be_downloaded {
+            CanBeDownloaded
+        } else {
+            dbg!(file);
+            unimplemented!("unknown file status");
+        }
+    }
+}
+
 impl MessageDocument {
     fn update_document(&self, message: &Message) {
         if let MessageContent::MessageDocument(data) = message.content().0 {
@@ -205,76 +240,97 @@ impl MessageDocument {
 
             imp.file_name.set_label(&data.document.file_name);
 
+            let document = &data.document.document;
+            let size = document.size.max(document.expected_size) as u64;
+            imp.file_size
+                .set_width_chars(format_size(size).len() as i32);
+
             let session = message.chat().session();
 
             self.update_status(data.document.document, session);
         }
     }
 
-    fn update_status(&self, document: File, session: Session) {
-        let local = &document.local;
-        let imp = self.imp();
+    fn update_status(&self, file: File, session: Session) -> bool {
+        let status = FileStatus::from(&file);
 
-        if local.is_downloading_completed {
-            imp.file_status.set_icon_name("folder-documents-symbolic");
-            imp.file_size
-                .set_label(&format_size(local.downloaded_size as u64));
+        let size = file.size.max(file.expected_size) as u64;
 
-            let path = local.path.clone();
-            let gio_file = gio::File::for_path(&path);
+        self.update_size_label(&status, size);
+        self.update_button(file, session, &status);
 
-            imp.file_status.connect_clicked(move |_| {
-                gio::AppInfo::launch_default_for_uri(
-                    &gio_file.uri(),
-                    Option::<&gio::AppLaunchContext>::None,
-                )
-                .ok();
-            });
-        } else if !local.is_downloading_active {
-            imp.file_status.set_icon_name("document-save-symbolic");
+        status == Downloaded
+    }
 
-            let file_size = if document.size != 0 {
-                document.size as u64
-            } else {
-                document.expected_size as u64
-            };
+    fn update_button(&self, file: File, session: Session, status: &FileStatus) {
+        let button = &self.imp().file_status;
 
-            imp.file_size.set_label(&format_size(file_size));
+        let file_id = file.id;
 
-            let id = document.id;
+        let handler_id = match *status {
+            Downloading(progress) => {
+                // Cancel downloading
+                if progress > 0.1 {
+                    return;
+                }
+                button.set_icon_name("media-playback-stop-symbolic");
+                button.connect_clicked(clone!(@weak session => move |_| {
+                    session.cancel_download_file(file_id);
+                }))
+            }
+            Uploading(_progress) => {
+                // Cancel sending
+                unimplemented!();
+            }
+            CanBeDownloaded => {
+                // Download file
+                button.set_icon_name("document-save-symbolic");
+                button.connect_clicked(clone!( @weak self as obj, @weak session => move |_| {
+                        let (sender, receiver) = glib::MainContext::sync_channel::<File>(Default::default(), 5);
+                        receiver.attach(
+                            None,
+                            clone!(@weak obj, @weak session => @default-return glib::Continue(false), move |file| {
+                                let file_downloaded = obj.update_status(file, session);
+                                glib::Continue(!file_downloaded)
+                            }));
 
-            imp.file_status.connect_clicked(
-                clone!(@weak self as obj, @strong session => move |file_status| {
+                        session.download_file(file_id, sender);
+                    }))
+            }
+            Downloaded => {
+                // Open file
+                button.set_icon_name("folder-documents-symbolic");
+                let gio_file = gio::File::for_path(&file.local.path);
+                button.connect_clicked(move |_| {
+                    if let Err(err) = gio::AppInfo::launch_default_for_uri(
+                        &gio_file.uri(),
+                        gio::AppLaunchContext::NONE,
+                    ) {
+                        eprintln!("Error: {}", err);
+                    }
+                })
+            }
+        };
 
-                    // I don't know how to cancel downloading
-                    file_status.set_icon_name("media-playback-stop-symbolic");
-                    file_status.connect_clicked(|_| {});
+        let status_handler_id = &self.imp().status_handler_id;
 
-                    let (sender, receiver) = glib::MainContext::sync_channel::<File>(Default::default(), 5);
-                    receiver.attach(
-                        None,
-                        clone!(@weak obj, @weak session => @default-return glib::Continue(false), move |file| {
-                            if file.local.is_downloading_completed {
-                                obj.update_status(file, session);
-                                glib::Continue(false)
-                            } else {
-                                let progress = file.local.downloaded_size as f64 / file.expected_size as f64;
+        if let Some(handler_id) = status_handler_id.take() {
+            button.disconnect(handler_id);
+        }
 
-                                obj.imp().file_size.set_label(
-                                    format!(
-                                        "{:.0}% of {}",
-                                        progress * 100.0,
-                                        format_size(document.expected_size as u64)
-                                    )
-                                    .as_str(),
-                                );
-                                glib::Continue(true)
-                            }
-                        }));
+        *status_handler_id.borrow_mut() = Some(handler_id);
+    }
 
-                    session.download_file(id, sender);
-                }),
-            );
+    fn update_size_label(&self, status: &FileStatus, size: u64) {
+        let size_label = &self.imp().file_size;
+
+        match status {
+            Downloading(progress) | Uploading(progress) => {
+                size_label.set_label(format!("{:.1}%", progress * 99.9).as_str());
+            }
+            CanBeDownloaded | Downloaded => {
+                size_label.set_label(format_size(size).as_str());
+            }
         }
     }
 }

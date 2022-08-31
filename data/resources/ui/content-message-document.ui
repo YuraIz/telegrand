@@ -26,7 +26,6 @@
           <object class="GtkButton" id="file_status">
             <style>
               <class name="circular" />
-              <class name="osd" />
             </style>
             <property name="valign">center</property>
             <property name="icon-name">window-close-symbolic</property>
@@ -39,9 +38,6 @@
             <property name="orientation">vertical</property>
             <child>
               <object class="GtkLabel" id="file_name">
-                <style>
-                  <class name="heading" />
-                </style>
                 <property name="xalign">0</property>
                 <property name="ellipsize">middle</property>
               </object>
@@ -49,7 +45,8 @@
             <child>
               <object class="GtkLabel" id="file_size">
                 <style>
-                  <class name="caption" />
+                  <class name="numeric" />
+                  <class name="dim-label" />
                 </style>
                 <property name="xalign">0</property>
               </object>
@@ -58,7 +55,6 @@
               <object class="MessageIndicators">
                 <property name="message" bind-source="indicators" bind-property="message" />
                 <property name="visible" bind-source="content_label" bind-property="visible" bind-flags="sync-create|invert-boolean" />
-                <property name="opacity">0.7</property>
                 <property name="halign">end</property>
                 <property name="valign">end</property>
               </object>
