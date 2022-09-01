@@ -6,6 +6,7 @@ mod label;
 mod media;
 mod media_picture;
 mod photo;
+mod progress_circle;
 mod sticker;
 mod sticker_picture;
 mod text;

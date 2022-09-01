@@ -3,6 +3,7 @@ use gtk::glib::SignalHandlerId;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib, CompositeTemplate};
+use std::borrow::Borrow;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use tdlib::enums::MessageContent;
@@ -16,6 +17,7 @@ use crate::utils::parse_formatted_text;
 use crate::Session;
 
 use super::base::MessageBaseExt;
+use super::progress_circle::{self, ProgressCircle};
 
 mod imp {
     use super::*;
@@ -270,9 +272,29 @@ impl MessageDocument {
         let handler_id = match *status {
             Downloading(progress) => {
                 // Cancel downloading
-                if progress > 0.1 {
+                // if let Some(child) = button.child() {
+                //     //     if let Some(overlay) = child.downcast_ref::<gtk::Overlay>() {
+                //     //         if let Some(child) = overlay.child() {
+                //     if let Some(progress_circle) = child.downcast_ref::<ProgressCircle>() {
+                //         progress_circle.set_progress(progress);
+                //     }
+                //     // }
+                //     // }
+                // }
+
+                if progress != 0.0 {
                     return;
                 }
+
+                // // let image = gtk::Image::from_icon_name("media-playback-stop-symbolic");
+                // let progress = ProgressCircle::new();
+
+                // // // let overlay = gtk::Overlay::new();
+                // // // overlay.set_child(Some(&progress));
+                // // // overlay.add_overlay(&image);
+
+                // button.set_child(Some(&progress));
+
                 button.set_icon_name("media-playback-stop-symbolic");
                 button.connect_clicked(clone!(@weak session => move |_| {
                     session.cancel_download_file(file_id);
