@@ -163,6 +163,10 @@ messagemedia progressbar>trough {
   min-width: 100px;
 }
 
+messagepoll > box {
+  padding: 6px;
+}
+
 messageindicators {
   font-size: x-small;
   font-feature-settings: "tnum";

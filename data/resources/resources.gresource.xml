@@ -20,6 +20,7 @@
     <file compressed="true" preprocess="xml-stripblanks">ui/content-event-row.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/content-message-media.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/content-message-photo.ui</file>
+    <file compressed="true" preprocess="xml-stripblanks">ui/content-message-poll.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/content-message-sticker.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/content-message-text.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">ui/content-send-photo-dialog.ui</file>

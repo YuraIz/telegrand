@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="ContentMessageDocument" parent="ContentMessageBase">
+    <property name="layout-manager">
+      <object class="GtkBoxLayout">
+        <property name="orientation">vertical</property>
+      </object>
+    </property>
+    <style>
+      <class name="message-bubble" />
+    </style>
+    <child>
+      <object class="GtkLabel" id="sender_label">
+        <property name="ellipsize">end</property>
+        <property name="single-line-mode">True</property>
+        <property name="xalign">0</property>
+        <style>
+          <class name="sender-text" />
+        </style>
+      </object>
+    </child>
+    <child>
+      <object class="GtkBox">
+        <property name="width-request">200</property>
+        <property name="valign">center</property>
+        <property name="hexpand">true</property>
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkLabel" id="question">
+            <property name="xalign">0</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkLabel" id="caption">
+            <style>
+              <class name="subtitle" />
+              <!-- <class name="dim-label" /> -->
+            </style>
+            <property name="xalign">0</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="answers">
+            <property name="orientation">vertical</property>
+
+          </object>
+        </child>
+        <child>
+          <object class="MessageIndicators" id="indicators">
+            <property name="halign">end</property>
+            <property name="valign">end</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

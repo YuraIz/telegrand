@@ -5,6 +5,8 @@ mod label;
 mod media;
 mod media_picture;
 mod photo;
+mod poll;
+mod poll_option;
 mod sticker;
 mod sticker_picture;
 mod text;
@@ -15,6 +17,7 @@ use self::label::MessageLabel;
 use self::media::Media;
 use self::media_picture::MediaPicture;
 use self::photo::MessagePhoto;
+use self::poll::MessagePoll;
 use self::sticker::MessageSticker;
 use self::sticker_picture::StickerPicture;
 use self::text::MessageText;
@@ -253,6 +256,9 @@ impl MessageRow {
             match message_.content().0 {
                 MessageContent::MessagePhoto(_) => {
                     self.update_specific_content::<_, MessagePhoto>(message_.clone());
+                }
+                MessageContent::MessagePoll(_) => {
+                    self.update_specific_content::<_, MessagePoll>(message);
                 }
                 MessageContent::MessageSticker(data)
                     if matches!(
