@@ -37,6 +37,21 @@
     ],
     "modules": [
         {
+            "name": "rlottie",
+            "buildsystem": "meson",
+            "config-opts": [
+                "-Dwerror=false",
+                "-Dcache=false"
+            ],
+            "sources": [
+                {
+                    "type": "git",
+                    "url": "https://github.com/melix99/rlottie",
+                    "branch": "fix-build"
+                }
+            ]
+        },
+        {
             "name": "gtk",
             "buildsystem": "meson",
             "config-opts": [
@@ -78,8 +93,8 @@
             "name": "tdlib-prebuilt",
             "only-arches": [
                 "x86_64",
-                "aarch64"
-            ],
+                 "aarch64"
+                ],
             "buildsystem": "simple",
             "build-commands": [
                 "install -d /app/lib/pkgconfig",
@@ -91,7 +106,7 @@
                 {
                     "only-arches": [
                         "x86_64"
-                    ],
+                ],
                     "type": "archive",
                     "url": "https://github.com/melix99/tdjson-ci/releases/download/1.8.2-1/tdjson-x86_64.zip",
                     "sha256": "2efddcf0a7d94321b08b449ab9ff7e5b1faabe7ee9f666ddc4d8a4f21cadbec4",
@@ -100,7 +115,7 @@
                 {
                     "only-arches": [
                         "aarch64"
-                    ],
+                ],
                     "type": "archive",
                     "url": "https://github.com/melix99/tdjson-ci/releases/download/1.8.2-1/tdjson-aarch64.zip",
                     "sha256": "401ceae0a9b838d5b6e273ba9d84d64cf8b20842fbefc51d4856b3f34cc010d7",
@@ -112,7 +127,7 @@
             "name": "tdlib",
             "skip-arches": [
                 "x86_64",
-                "aarch64"
+             "aarch64"
             ],
             "buildsystem": "cmake-ninja",
             "builddir": true,

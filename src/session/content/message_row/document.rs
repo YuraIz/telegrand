@@ -72,6 +72,7 @@ mod imp {
                 .connect_released(clone!(@weak obj => move |_, _, _, _| {
                     obj.imp().file_status_button.emit_clicked();
                 }));
+            self.click.block_signal(&handler_id);
             self.click_handler_id.set(handler_id).unwrap();
         }
 

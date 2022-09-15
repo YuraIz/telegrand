@@ -221,6 +221,11 @@ messagemedia overlay > messageindicators, messagesticker messageindicators {
   margin: 6px;
 }
 
+messagesticker image.animation {
+  min-width: 208px;
+  min-height: 208px;
+}
+
 .event-row {
   font-size: smaller;
   padding: 3px;

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="ContentMessageStickerAnimation" parent="ContentMessageBase">
+    <property name="layout-manager">
+      <object class="GtkBinLayout"/>
+    </property>
+    <child>
+      <object class="GtkOverlay">
+        <child>
+          <object class="GtkImage" id="image">
+            <style>
+              <class name="animation"/>
+            </style>
+          </object>
+        </child>
+        <child type="overlay">
+          <object class="MessageIndicators" id="indicators">
+            <property name="halign">end</property>
+            <property name="valign">end</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

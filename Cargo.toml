@@ -21,3 +21,5 @@ regex = "1.6"
 tdlib = { version = "0.1", default-features = false }
 temp-dir = "0.1"
 thiserror = "1.0"
+rlottie = { git = "https://github.com/melix99/telegram-rlottie-rs" }
+flate2 = "1.0.24"

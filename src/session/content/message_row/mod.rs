@@ -3,10 +3,12 @@ mod document;
 mod indicators;
 mod indicators_model;
 mod label;
+mod lottie_animation;
 mod media;
 mod media_picture;
 mod photo;
 mod sticker;
+mod sticker_animation;
 mod sticker_picture;
 mod text;
 
@@ -18,6 +20,7 @@ use self::media::Media;
 use self::media_picture::MediaPicture;
 use self::photo::MessagePhoto;
 use self::sticker::MessageSticker;
+use self::sticker_animation::MessageStickerAnimation;
 use self::sticker_picture::StickerPicture;
 use self::text::MessageText;
 
@@ -256,14 +259,14 @@ impl MessageRow {
                 MessageContent::MessagePhoto(_) => {
                     self.update_specific_content::<_, MessagePhoto>(message_.clone());
                 }
-                MessageContent::MessageSticker(data)
-                    if matches!(
-                        data.sticker.r#type,
-                        StickerType::Static | StickerType::Mask(_)
-                    ) =>
-                {
-                    self.update_specific_content::<_, MessageSticker>(message_.clone());
-                }
+                MessageContent::MessageSticker(data) => match data.sticker.r#type {
+                    StickerType::Static | StickerType::Mask(_) => {
+                        self.update_specific_content::<_, MessageSticker>(message_.clone())
+                    }
+                    StickerType::Animated | StickerType::Video => {
+                        self.update_specific_content::<_, MessageStickerAnimation>(message_.clone())
+                    } // _ => self.update_specific_content::<_, MessageText>(message),
+                },
                 MessageContent::MessageDocument(_) => {
                     self.update_specific_content::<_, MessageDocument>(message_.clone());
                 }
