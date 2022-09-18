@@ -6,7 +6,7 @@ use tdlib::enums::MessageContent;
 use tdlib::types::File;
 
 use crate::session::content::message_row::{
-    Media, MessageBase, MessageBaseImpl, MessageIndicators,
+    Media, MessageBase, MessageBaseImpl, MessageBubble, MessageIndicators,
 };
 use crate::tdlib::{BoxedMessageContent, Message};
 use crate::utils::parse_formatted_text;
@@ -25,6 +25,8 @@ mod imp {
         pub(super) binding: RefCell<Option<gtk::ExpressionWatch>>,
         pub(super) handler_id: RefCell<Option<glib::SignalHandlerId>>,
         pub(super) message: RefCell<Option<Message>>,
+        #[template_child]
+        pub(super) message_bubble: TemplateChild<MessageBubble>,
         #[template_child]
         pub(super) media: TemplateChild<Media>,
         #[template_child]
@@ -128,7 +130,7 @@ impl MessageBaseExt for MessagePhoto {
                     unreachable!();
                 }
             }))
-            .bind(&*imp.media, "caption", Some(&message));
+            .bind(&*imp.message_bubble, "label", Some(&message));
         imp.binding.replace(Some(caption_binding));
 
         // Load photo

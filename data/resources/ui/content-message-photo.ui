@@ -4,11 +4,11 @@
     <property name="layout-manager">
       <object class="GtkBinLayout"/>
     </property>
-    <style>
-      <class name="message-bubble"/>
-    </style>
     <child>
-      <object class="ContentMessageMedia" id="media">
+      <object class="MessageBubble" id="message_bubble">
+        <property name="prefix">
+          <object class="ContentMessageMedia" id="media"/>
+        </property>
         <property name="indicators">
           <object class="MessageIndicators" id="indicators">
             <property name="halign">end</property>

@@ -3,12 +3,10 @@ use glib::closure;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{glib, CompositeTemplate};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use tdlib::enums::MessageContent;
 
 use crate::session::content::message_row::{
-    MessageBase, MessageBaseImpl, MessageIndicators, MessageLabel,
+    MessageBase, MessageBaseImpl, MessageBubble, MessageIndicators,
 };
 use crate::tdlib::{BoxedMessageContent, Chat, ChatType, Message, MessageSender, SponsoredMessage};
 use crate::utils::parse_formatted_text;
@@ -23,13 +21,10 @@ mod imp {
     #[derive(Debug, Default, CompositeTemplate)]
     #[template(resource = "/com/github/melix99/telegrand/ui/content-message-text.ui")]
     pub(crate) struct MessageText {
-        pub(super) sender_color_class: RefCell<Option<String>>,
         pub(super) bindings: RefCell<Vec<gtk::ExpressionWatch>>,
         pub(super) message: RefCell<Option<glib::Object>>,
         #[template_child]
-        pub(super) sender_label: TemplateChild<gtk::Label>,
-        #[template_child]
-        pub(super) content_label: TemplateChild<MessageLabel>,
+        pub(super) message_bubble: TemplateChild<MessageBubble>,
         #[template_child]
         pub(super) indicators: TemplateChild<MessageIndicators>,
     }
@@ -42,6 +37,7 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             Self::bind_template(klass);
+            klass.set_layout_manager_type::<gtk::BinLayout>();
         }
 
         fn instance_init(obj: &glib::subclass::InitializingObject<Self>) {
@@ -111,24 +107,24 @@ impl MessageBaseExt for MessageText {
 
         imp.indicators.set_message(message.clone());
 
-        // Remove the previous color css class
-        let mut sender_color_class = imp.sender_color_class.borrow_mut();
-        if let Some(class) = sender_color_class.as_ref() {
-            imp.sender_label.remove_css_class(class);
-            *sender_color_class = None;
-        }
-
         if let Some(message) = message.downcast_ref::<Message>() {
             // Show sender label, if needed
             let show_sender = if message.chat().is_own_chat() {
                 if message.is_outgoing() {
                     None
                 } else {
-                    Some(message.forward_info().unwrap().origin().id())
+                    Some(
+                        message
+                            .forward_info()
+                            .unwrap()
+                            .origin()
+                            .id()
+                            .unwrap_or_default(),
+                    )
                 }
             } else if message.is_outgoing() {
                 if matches!(message.sender(), MessageSender::Chat(_)) {
-                    Some(Some(message.sender().id()))
+                    Some(message.sender().id())
                 } else {
                     None
                 }
@@ -136,40 +132,21 @@ impl MessageBaseExt for MessageText {
                 message.chat().type_(),
                 ChatType::BasicGroup(_) | ChatType::Supergroup(_)
             ) {
-                Some(Some(message.sender().id()))
+                Some(message.sender().id())
             } else {
                 None
             };
 
-            if let Some(maybe_id) = show_sender {
+            if let Some(sender_id) = show_sender {
                 let sender_name_expression = message.sender_display_name_expression();
                 let sender_binding =
-                    sender_name_expression.bind(&*imp.sender_label, "label", glib::Object::NONE);
+                    sender_name_expression.bind(&*imp.message_bubble, "sender", glib::Object::NONE);
                 bindings.push(sender_binding);
 
-                // Color sender label
-                let classes = vec![
-                    "sender-text-red",
-                    "sender-text-orange",
-                    "sender-text-violet",
-                    "sender-text-green",
-                    "sender-text-cyan",
-                    "sender-text-blue",
-                    "sender-text-pink",
-                ];
-
-                let color_class = classes[maybe_id.map(|id| id as usize).unwrap_or_else(|| {
-                    let mut s = DefaultHasher::new();
-                    imp.sender_label.label().hash(&mut s);
-                    s.finish() as usize
-                }) % classes.len()];
-                imp.sender_label.add_css_class(color_class);
-
-                *sender_color_class = Some(color_class.into());
-
-                imp.sender_label.set_visible(true);
+                imp.message_bubble.set_sender_id(sender_id);
             } else {
-                imp.sender_label.set_visible(false);
+                imp.message_bubble.set_sender("");
+                imp.message_bubble.set_sender_id(0);
             }
 
             // Set content label expression
@@ -177,14 +154,12 @@ impl MessageBaseExt for MessageText {
                 .chain_closure::<String>(closure!(|_: Message, content: BoxedMessageContent| {
                     format_message_content_text(content.0)
                 }))
-                .bind(&*imp.content_label, "label", Some(message));
+                .bind(&*imp.message_bubble, "label", Some(message));
             bindings.push(text_binding);
         } else if let Some(sponsored_message) = message.downcast_ref::<SponsoredMessage>() {
-            imp.sender_label.set_visible(true);
-
             let sender_binding = Chat::this_expression("title").bind(
-                &*imp.sender_label,
-                "label",
+                &*imp.message_bubble,
+                "sender",
                 Some(&sponsored_message.sponsor_chat()),
             );
             bindings.push(sender_binding);
@@ -195,7 +170,7 @@ impl MessageBaseExt for MessageText {
                         format_message_content_text(content.0)
                     }
                 ))
-                .bind(&*imp.content_label, "label", Some(sponsored_message));
+                .bind(&*imp.message_bubble, "label", Some(sponsored_message));
             bindings.push(text_binding);
         } else {
             unreachable!("Unexpected message type: {:?}", message);

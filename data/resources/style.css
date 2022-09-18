@@ -122,21 +122,21 @@ sidebarsearchitemrow {
   padding: 3px;
 }
 
-.message-bubble {
-  background-color: alpha(black, 0.07);
+messagebubble {
+  background: alpha(currentColor, 0.08);
   border-radius: 12px;
 }
 
-.message-bubble.outgoing {
-  background-color: @accent_bg_color;
+.outgoing > messagebubble {
+  background: @accent_bg_color;
   color: @accent_fg_color;
 }
 
-.message-bubble.outgoing selection {
-  background-color: alpha(@accent_fg_color, 0.2);
+.outgoing > messagebubble selection {
+  background: alpha(@accent_fg_color, 0.2);
 }
 
-.message-bubble.outgoing link {
+.outgoing > messagebubble link {
   color: @accent_fg_color;
 }
 
@@ -145,7 +145,7 @@ messagemedia .media-picture {
   border-radius: 10px;
 }
 
-messagemedia.with-caption .media-picture {
+messagebubble.with-label messagemedia .media-picture {
   margin-bottom: 0;
   border-radius: 10px 10px 4px 4px;
 }
@@ -168,7 +168,7 @@ messagelabel > messageindicators {
   opacity: 0.7;
 }
 
-messagemedia overlay > messageindicators, messagesticker messageindicators {
+messagebubble:not(.with-label) messageindicators, messagesticker messageindicators {
   background-color: alpha(@view_bg_color, 0.8);
   color: @view_fg_color;
   border-radius: 9999px;
