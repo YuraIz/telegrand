@@ -149,39 +149,24 @@ messagedocument > box {
   transition: 200ms;
 }
 
-messagedocument > box > button {
+messagedocument > box > image {
   background: @accent_color;
   color: @window_bg_color;
   min-width: 40px;
   min-height: 40px;
+  border-radius: 9999px;
 }
 
-messagedocument.outgoing > box > button {
+messagedocument.outgoing > box > image {
   background: @accent_fg_color;
   color: @accent_bg_color;
 }
 
-messagedocument > box:not(.activatable) > button:hover {
-  background: mix(@accent_color, currentColor, 0.2);
-}
-
-messagedocument.outgoing > box:not(.activatable) > button:hover {
-  background: mix(@accent_fg_color, currentColor, 0.2);
-}
-
-messagedocument>box:not(.activatable)>button:active {
-  background: mix(@accent_color, currentColor, 0.3);
-}
-
-messagedocument.outgoing>box:not(.activatable)>button:active {
-  background: mix(@accent_fg_color, currentColor, 0.3);
-}
-
-messagedocument > box.activatable:hover {
+messagedocument > box:hover {
   background: alpha(currentColor, 0.1);
 }
 
-messagedocument > box.activatable:active {
+messagedocument > box:active {
   background: alpha(currentColor, 0.2);
 }
 

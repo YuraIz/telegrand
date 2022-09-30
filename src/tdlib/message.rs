@@ -271,7 +271,7 @@ impl Message {
         self.imp().content.borrow().as_ref().unwrap().to_owned()
     }
 
-    fn set_content(&self, content: BoxedMessageContent) {
+    pub(crate) fn set_content(&self, content: BoxedMessageContent) {
         if self.imp().content.borrow().as_ref() == Some(&content) {
             return;
         }

@@ -10,7 +10,7 @@ use tdlib::types::File;
 use crate::session::content::message_row::{
     MessageBase, MessageBaseImpl, MessageIndicators, MessageLabel,
 };
-use crate::tdlib::{ChatType, Message, MessageSender};
+use crate::tdlib::{BoxedMessageContent, ChatType, Message, MessageSender};
 use crate::utils::parse_formatted_text;
 use crate::Session;
 
@@ -19,7 +19,6 @@ use super::base::MessageBaseExt;
 mod imp {
     use super::*;
     use once_cell::sync::Lazy;
-    use once_cell::unsync::OnceCell;
     use std::cell::RefCell;
 
     #[derive(Debug, Default, CompositeTemplate)]
@@ -29,7 +28,6 @@ mod imp {
         pub(super) bindings: RefCell<Vec<gtk::ExpressionWatch>>,
         pub(super) handler_id: RefCell<Option<glib::SignalHandlerId>>,
         pub(super) status_handler_id: RefCell<Option<glib::SignalHandlerId>>,
-        pub(super) click_handler_id: OnceCell<glib::SignalHandlerId>,
         pub(super) message: RefCell<Option<Message>>,
         #[template_child]
         pub(super) sender_label: TemplateChild<gtk::Label>,
@@ -38,7 +36,7 @@ mod imp {
         #[template_child]
         pub(super) click: TemplateChild<gtk::GestureClick>,
         #[template_child]
-        pub(super) file_status_button: TemplateChild<gtk::Button>,
+        pub(super) file_status_image: TemplateChild<gtk::Image>,
         #[template_child]
         pub(super) file_name_label: TemplateChild<gtk::Label>,
         #[template_child]
@@ -66,15 +64,6 @@ mod imp {
     }
 
     impl ObjectImpl for MessageDocument {
-        fn constructed(&self, obj: &Self::Type) {
-            let handler_id = self
-                .click
-                .connect_released(clone!(@weak obj => move |_, _, _, _| {
-                    obj.imp().file_status_button.emit_clicked();
-                }));
-            self.click_handler_id.set(handler_id).unwrap();
-        }
-
         fn properties() -> &'static [glib::ParamSpec] {
             static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
                 vec![glib::ParamSpecObject::new(
@@ -269,61 +258,49 @@ impl MessageDocument {
         status
     }
 
-    fn block_click(&self, block: bool) {
-        let imp = self.imp();
-        let click = &*imp.click;
-        let document_box = &*imp.document_box;
-
-        let handler_id = imp.click_handler_id.get().unwrap();
-        if block {
-            click.block_signal(handler_id);
-            document_box.remove_css_class("activatable");
-        } else {
-            click.unblock_signal(handler_id);
-            document_box.add_css_class("activatable");
-        }
-    }
-
     fn update_button(&self, file: File, session: Session, status: &FileStatus) {
         let imp = self.imp();
-        let button = &*imp.file_status_button;
+        let click = &*imp.click;
+        let image = &*imp.file_status_image;
         let file_id = file.id;
 
         let handler_id = match *status {
             Downloading(_progress) | Uploading(_progress) => {
                 return;
-                // Show loading indicator on button
+                // Show loading indicator
             }
             CanBeDownloaded => {
                 // Download file
-                self.block_click(false);
-                button.set_icon_name("document-save-symbolic");
-                button.connect_clicked(clone!(@weak self as obj, @weak session => move |button| {
+                image.set_icon_name(Some("document-save-symbolic"));
+                click.connect_released(clone!(@weak self as obj, @weak session => move |click, _, _, _| {
                     let (sender, receiver) = glib::MainContext::sync_channel::<File>(Default::default(), 5);
                     receiver.attach(
                         None,
-                        clone!(@weak obj, @weak session => @default-return glib::Continue(false), move |file| {
-                            glib::Continue(obj.update_status(file, session) != FileStatus::Downloaded)
+                        clone!(@weak obj => @default-return glib::Continue(false), move |file| {
+                            let message = obj.message();
+                            if let MessageContent::MessageDocument(mut data) = message.content().0 {
+                                data.document.document = file;
+                                message.set_content(BoxedMessageContent(MessageContent::MessageDocument(data)));
+                            }
+                            glib::Continue(true)
                     }));
 
                     session.download_file(file_id, sender);
 
-                    obj.block_click(true);
-                    button.set_icon_name("media-playback-stop-symbolic");
-                    let handler_id = button.connect_clicked(clone!(@weak session => move |_| {
+                    obj.imp().file_status_image.set_icon_name(Some("media-playback-stop-symbolic"));
+                    let handler_id = click.connect_released(clone!(@weak session => move |_, _, _, _| {
                         session.cancel_file_download(file_id);
                     }));
                     if let Some(handler_id) = obj.imp().status_handler_id.replace(Some(handler_id)) {
-                        button.disconnect(handler_id);
+                        click.disconnect(handler_id);
                     }
                 }))
             }
             Downloaded => {
                 // Open file
-                self.block_click(false);
-                button.set_icon_name("folder-documents-symbolic");
+                image.set_icon_name(Some("folder-documents-symbolic"));
                 let gio_file = gio::File::for_path(&file.local.path);
-                button.connect_clicked(move |_| {
+                click.connect_released(move |_, _, _, _| {
                     if let Err(err) = gio::AppInfo::launch_default_for_uri(
                         &gio_file.uri(),
                         gio::AppLaunchContext::NONE,
@@ -335,7 +312,7 @@ impl MessageDocument {
         };
 
         if let Some(handler_id) = imp.status_handler_id.replace(Some(handler_id)) {
-            button.disconnect(handler_id);
+            click.disconnect(handler_id);
         }
     }
 

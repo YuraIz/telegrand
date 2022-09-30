@@ -29,10 +29,7 @@
           </object>
         </child>
         <child>
-          <object class="GtkButton" id="file_status_button">
-            <style>
-              <class name="circular"/>
-            </style>
+          <object class="GtkImage" id="file_status_image">
             <property name="valign">start</property>
           </object>
         </child>
