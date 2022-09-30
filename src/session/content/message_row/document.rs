@@ -31,8 +31,6 @@ mod imp {
         pub(super) handler_id: RefCell<Option<glib::SignalHandlerId>>,
         pub(super) status_handler_id: RefCell<Option<glib::SignalHandlerId>>,
         pub(super) message: RefCell<Option<Message>>,
-        // #[template_child]
-        // pub(super) sender_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub(super) document_box: TemplateChild<gtk::Box>,
         #[template_child]
@@ -43,8 +41,6 @@ mod imp {
         pub(super) file_name_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub(super) file_size_label: TemplateChild<gtk::Label>,
-        // #[template_child]
-        // pub(super) content_label: TemplateChild<MessageLabel>,
         #[template_child]
         pub(super) indicators: TemplateChild<MessageIndicators>,
         #[template_child]
@@ -129,13 +125,6 @@ impl MessageBaseExt for MessageDocument {
         }
 
         imp.indicators.set_message(message.clone().upcast());
-
-        // // Remove the previous color css class
-        // let mut sender_color_class = imp.sender_color_class.borrow_mut();
-        // if let Some(class) = sender_color_class.as_ref() {
-        //     imp.sender_label.remove_css_class(class);
-        //     *sender_color_class = None;
-        // }
 
         // Show sender label, if needed
         let show_sender = if message.chat().is_own_chat() {
@@ -240,9 +229,6 @@ impl MessageDocument {
             let imp = self.imp();
 
             let message_text = parse_formatted_text(data.caption);
-            // imp.message_bubble.set_
-            // imp.content_label.set_visible(!message_text.is_empty());
-            // imp.content_label.set_label(message_text);
 
             imp.file_name_label.set_label(&data.document.file_name);
 
