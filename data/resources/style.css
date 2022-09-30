@@ -140,34 +140,34 @@ messagebubble {
   color: @accent_fg_color;
 }
 
-messagedocument > label.sender-text {
-  margin-bottom: 3px;
+messagedocument > messagebubble > overlay > label.sender-text {
+    margin-bottom: 3px;
 }
 
-messagedocument > box {
-  padding: 9px;
-  transition: 200ms;
+messagedocument > messagebubble > overlay > box > box {
+    padding: 9px;
+    transition: 200ms;
 }
 
-messagedocument > box > image {
-  background: @accent_color;
-  color: @window_bg_color;
-  min-width: 40px;
-  min-height: 40px;
-  border-radius: 9999px;
+messagedocument > messagebubble > overlay > box > box > image {
+    background: @accent_color;
+    color: @window_bg_color;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 9999px;
 }
 
-messagedocument.outgoing > box > image {
-  background: @accent_fg_color;
-  color: @accent_bg_color;
+messagedocument.outgoing > messagebubble > overlay > box > box > image {
+    background: @accent_fg_color;
+    color: @accent_bg_color;
 }
 
-messagedocument > box:hover {
-  background: alpha(currentColor, 0.1);
+messagedocument > messagebubble > overlay > box > box:hover {
+    background: alpha(currentColor, 0.1);
 }
 
-messagedocument > box:active {
-  background: alpha(currentColor, 0.2);
+messagedocument > messagebubble > overlay > box > box:active {
+    background: alpha(currentColor, 0.2);
 }
 
 messagemedia .media-picture {
@@ -194,8 +194,9 @@ messagelabel {
   margin: 6px 9px;
 }
 
-messagelabel > messageindicators, messagedocument > box messageindicators {
+messagelabel > messageindicators, messagedocument messageindicators {
   opacity: 0.7;
+  background: transparent;
 }
 
 messagebubble:not(.with-label) messageindicators, messagesticker messageindicators {

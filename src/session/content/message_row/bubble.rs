@@ -254,7 +254,7 @@ impl MessageBubble {
                 let sender_label = gtk::Label::builder().label(sender).xalign(0.0).build();
                 sender_label.add_css_class("sender-text");
                 // TODO: connect notify signal
-                imp.content_box.append(&sender_label);
+                imp.content_box.prepend(&sender_label);
 
                 *sender_label_ref = Some(sender_label);
 
