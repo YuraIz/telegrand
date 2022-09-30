@@ -170,6 +170,10 @@ messagedocument > messagebubble > overlay > box > box:active {
     background: alpha(currentColor, 0.2);
 }
 
+messagedocument>messagebubble:not(.with-label) messageindicators {
+    background-color: transparent;
+}
+
 messagemedia .media-picture {
   margin: 2px;
   border-radius: 10px;
@@ -192,11 +196,6 @@ messageindicators {
 
 messagelabel {
   margin: 6px 9px;
-}
-
-messagelabel > messageindicators, messagedocument messageindicators {
-  opacity: 0.7;
-  background: transparent;
 }
 
 messagebubble:not(.with-label) messageindicators, messagesticker messageindicators {
