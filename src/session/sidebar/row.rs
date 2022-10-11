@@ -37,6 +37,8 @@ mod imp {
         #[template_child]
         pub(super) bottom_box: TemplateChild<gtk::Box>,
         #[template_child]
+        pub(super) prefix_icon: TemplateChild<gtk::Image>,
+        #[template_child]
         pub(super) title_label: TemplateChild<gtk::Label>,
         #[template_child]
         pub(super) message_status_icon: TemplateChild<gtk::Image>,
@@ -219,6 +221,43 @@ impl Row {
             "label",
             Some(self),
         );
+
+        // ChatIcon
+        item_expression
+            .chain_property::<Chat>("type")
+            .chain_closure::<String>(closure!(|_: Self, chat_type: ChatType| {
+                match chat_type {
+                    ChatType::Private(user) => match user.type_().0 {
+                        UserType::Bot(_) => "bot-symbolic",
+                        _ => "",
+                    },
+                    ChatType::Supergroup(group) => {
+                        if group.is_channel() {
+                            "channel-symbolic"
+                        } else {
+                            "people-symbolic"
+                        }
+                    }
+                    ChatType::BasicGroup(_) => "people-symbolic",
+                    ChatType::Secret(_) => "channel-secure-symbolic",
+                }
+                .to_string()
+            }))
+            .bind(&*imp.prefix_icon, "icon-name", Some(self));
+
+        // ChatIcon
+        item_expression
+            .chain_property::<Chat>("type")
+            .chain_closure::<bool>(closure!(|_: Self, chat_type: ChatType| {
+                match chat_type {
+                    ChatType::Private(user) => match user.type_().0 {
+                        UserType::Bot(_) => true,
+                        _ => false,
+                    },
+                    _ => true,
+                }
+            }))
+            .bind(&*imp.prefix_icon, "visible", Some(self));
 
         // Chat unread count
         item_expression
