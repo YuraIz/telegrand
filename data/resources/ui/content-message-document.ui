@@ -7,7 +7,7 @@
           <class name="document"/>
         </style>
         <property name="prefix">
-          <object class="GtkBox">
+          <object class="GtkBox" id="file_box">
             <property name="spacing">6</property>
             <style>
               <class name="file"/>
@@ -18,7 +18,22 @@
               </object>
             </child>
             <child>
-              <object class="GtkImage" id="file_status_image"/>
+              <object class="GtkOverlay">
+                <property name="valign">start</property>
+                <child type="overlay">
+                  <object class="GtkPicture" id="file_thumbnail_picture">
+                    <property name="content-fit">cover</property>
+                    <property name="overflow">hidden</property>
+                    <property name="visible">false</property>
+                  </object>
+                </child>
+                <child type="overlay">
+                  <object class="GtkImage" id="file_status_image">
+                    <property name="halign">center</property>
+                    <property name="valign">center</property>
+                  </object>
+                </child>
+              </object>
             </child>
             <child>
               <object class="GtkBox">

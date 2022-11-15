@@ -159,10 +159,26 @@ messagebubble.document {
 }
 
 messagebubble.document .file {
-  margin: 6px 0;
+  margin: 3px 0;
 }
 
-messagebubble.document .file > image {
+messagebubble.document .sender-text-red,
+.sender-text-orange,
+.sender-text-violet,
+.sender-text-green,
+.sender-text-cyan,
+.sender-text-blue,
+.sender-text-pink {
+  margin-bottom: 3px;
+}
+
+messagebubble.document .file > overlay {
+  transition: 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  min-width: 40px;
+  min-height: 40px;
+}
+
+messagebubble.document .file > overlay > image {
   background: @accent_color;
   color: @window_bg_color;
   transition: opacity 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -170,17 +186,32 @@ messagebubble.document .file > image {
   border-radius: 9999px;
 }
 
-messagebubble.document.outgoing .file > image {
+messagebubble.document.outgoing .file > overlay > image {
   background: @accent_fg_color;
   color: @accent_bg_color;
 }
 
-messagebubble.document .file:hover > image {
+messagebubble.document .file:hover > overlay > image {
   opacity: 0.85;
 }
 
-messagebubble.document .file:active > image {
+messagebubble.document .file:active > overlay > image {
   opacity: 0.7;
+}
+
+messagebubble.document .file.with-thumbnail > overlay > image {
+  background-color: #00000090;
+  color: white;
+}
+
+messagebubble.document .file.with-thumbnail > overlay {
+  min-width: 60px;
+  min-height: 60px;
+}
+
+messagebubble.document .file.with-thumbnail > overlay > picture {
+  border-radius: 6px;
+  opacity: 1;
 }
 
 messagebubble.media .media-picture {
@@ -203,7 +234,7 @@ messagebubble.media:not(.with-label) messageindicators,
 messagesticker messageindicators {
   background-color: alpha(@view_bg_color, 0.8);
   color: @view_fg_color;
-  opacity: 1.0; /* Reset opacity from message bubble */
+  opacity: 1; /* Reset opacity from message bubble */
   border-radius: 9999px;
   padding: 2px 6px;
   margin: 6px;
@@ -262,7 +293,7 @@ messageindicators {
   padding: 0;
 }
 
-.message-entry > overlay > entry > scrolledwindow > scrollbar  {
+.message-entry > overlay > entry > scrolledwindow > scrollbar {
   box-shadow: none;
   background: none;
 }
