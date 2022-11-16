@@ -1,0 +1,40 @@
+<!ELEMENT widgets (widget*)>
+<!ELEMENT widget EMPTY>
+<!ELEMENT template (property*,child*,style?)+>
+<!ELEMENT style (class+)>
+<!ELEMENT signal EMPTY>
+<!ELEMENT section (item+)>
+<!ELEMENT property (#PCDATA|object)*>
+<!ELEMENT object (property*,signal?,child*,accessibility?,style?,binding*,widgets?)+>
+<!ELEMENT menu (section+)>
+<!ELEMENT lookup (#PCDATA|lookup)*>
+<!ELEMENT item (attribute+)>
+<!ELEMENT interface (object?|menu?|template)*>
+<!ELEMENT class EMPTY>
+<!ELEMENT child (object)>
+<!ELEMENT binding (lookup)>
+<!ELEMENT attribute (#PCDATA)>
+<!ELEMENT accessibility (property*)>
+<!ATTLIST widget name NMTOKEN #REQUIRED>
+<!ATTLIST template parent NMTOKEN #REQUIRED>
+<!ATTLIST template class NMTOKEN #REQUIRED>
+<!ATTLIST signal swapped (true) #IMPLIED>
+<!ATTLIST signal name ID #REQUIRED>
+<!ATTLIST signal handler CDATA #IMPLIED>
+<!ATTLIST property translatable NMTOKEN #IMPLIED>
+<!ATTLIST property name NMTOKEN #REQUIRED>
+<!ATTLIST property context CDATA #IMPLIED>
+<!ATTLIST property bind-source NMTOKEN #IMPLIED>
+<!ATTLIST property bind-property NMTOKEN #IMPLIED>
+<!ATTLIST property bind-flags CDATA #IMPLIED>
+<!ATTLIST object id NMTOKEN #IMPLIED>
+<!ATTLIST object class NMTOKEN #REQUIRED>
+<!ATTLIST menu id NMTOKEN #REQUIRED>
+<!ATTLIST lookup type NMTOKEN #IMPLIED>
+<!ATTLIST lookup name NMTOKEN #REQUIRED>
+<!ATTLIST class name NMTOKEN #REQUIRED>
+<!ATTLIST child type NMTOKEN #IMPLIED>
+<!ATTLIST binding name NMTOKEN #REQUIRED>
+<!ATTLIST attribute translatable (yes) #IMPLIED>
+<!ATTLIST attribute name (label|action|hidden-when) #REQUIRED>
+<!ATTLIST template domain CDATA #IMPLIED>

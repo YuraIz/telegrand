@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="ui-schema.dtd"?>
 <interface>
   <template class="AvatarWithSelection" parent="AdwBin">
     <property name="child">
@@ -9,7 +10,7 @@
         <child type="overlay">
           <object class="GtkImage" id="checkmark">
             <style>
-              <class name="blue-checkmark" />
+              <class name="blue-checkmark"/>
             </style>
             <property name="visible">false</property>
             <property name="halign">end</property>

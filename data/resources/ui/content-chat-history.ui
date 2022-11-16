@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="ui-schema.dtd"?>
 <interface>
   <template class="ContentChatHistory" parent="AdwBin">
     <child>
@@ -93,7 +94,8 @@
                         <property name="reversed">True</property>
                         <property name="factory">
                           <object class="GtkBuilderListItemFactory">
-                            <property name="bytes"><![CDATA[
+                            <property name="bytes">
+                              <![CDATA[
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template class="GtkListItem">
@@ -109,7 +111,8 @@
     </property>
   </template>
 </interface>
-                        ]]></property>
+                        ]]>
+                            </property>
                           </object>
                         </property>
                       </object>

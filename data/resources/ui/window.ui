@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="ui-schema.dtd"?>
 <interface>
   <template class="Window" parent="AdwApplicationWindow">
     <property name="default-width">900</property>
