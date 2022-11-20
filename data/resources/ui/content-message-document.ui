@@ -19,12 +19,10 @@
             </child>
             <child>
               <object class="GtkOverlay">
-                <property name="valign">start</property>
                 <child type="overlay">
                   <object class="GtkPicture" id="file_thumbnail_picture">
                     <property name="content-fit">cover</property>
-                    <property name="overflow">hidden</property>
-                    <property name="visible">false</property>
+                    <property name="visible">False</property>
                   </object>
                 </child>
                 <child type="overlay">
@@ -37,7 +35,7 @@
             </child>
             <child>
               <object class="GtkBox">
-                <property name="hexpand">true</property>
+                <property name="hexpand">True</property>
                 <property name="valign">center</property>
                 <property name="orientation">vertical</property>
                 <child>

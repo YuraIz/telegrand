@@ -38,6 +38,7 @@ mod imp {
                     <property name="xalign">0</property>
                     <property name="visible">False</property>
                     <style>
+                      <class name="sender"/>
                       <class name="caption-heading"/>
                     </style>
                   </object>
