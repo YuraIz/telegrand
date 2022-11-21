@@ -31,6 +31,9 @@
                     <property name="valign">center</property>
                   </object>
                 </child>
+                <child type="overlay">
+                  <object class="ComponentsLoadingIndicator" id="loading_indicator"/>
+                </child>
               </object>
             </child>
             <child>

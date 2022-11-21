@@ -1,3 +1,12 @@
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .bold {
   font-weight: bold;
 }
@@ -184,6 +193,15 @@ messagebubble.document.outgoing .file > overlay > image {
   color: @accent_bg_color;
 }
 
+messagebubble.document .file > overlay > loadingindicator {
+  animation: 3s linear infinite spin;
+  color: @window_bg_color;
+}
+
+messagebubble.document.outgoing .file > overlay > loadingindicator {
+  color: @accent_bg_color;
+}
+
 messagebubble.document .file:hover > overlay > image {
   opacity: 0.85;
 }
@@ -216,6 +234,11 @@ messagebubble.document .file.with-thumbnail:hover > overlay > picture {
 
 messagebubble.document .file.with-thumbnail:active > overlay > picture {
   filter: brightness(1.08);
+}
+
+messagebubble.document .file.with-thumbnail > overlay > loadingindicator {
+  padding: 10px;
+  color: white;
 }
 
 messagebubble.media .media-picture {
