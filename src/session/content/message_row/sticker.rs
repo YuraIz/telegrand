@@ -1,16 +1,15 @@
+use adw::prelude::*;
 use glib::clone;
-use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gdk, gio, glib, CompositeTemplate};
 use image::io::Reader as ImageReader;
 use image::ImageFormat;
 use std::io::Cursor;
-use tdlib::enums::MessageContent;
+use tdlib::enums::{MessageContent, StickerFormat};
 use tdlib::types::File;
 
-use crate::session::content::message_row::{
-    MessageBase, MessageBaseImpl, MessageIndicators, StickerPicture,
-};
+use crate::session::components::StickerPreview;
+use crate::session::content::message_row::{MessageBase, MessageBaseImpl, MessageIndicators};
 use crate::tdlib::Message;
 use crate::utils::spawn;
 
@@ -19,14 +18,19 @@ use super::base::MessageBaseExt;
 mod imp {
     use super::*;
     use once_cell::sync::Lazy;
-    use std::cell::RefCell;
+    use once_cell::unsync::OnceCell;
+    use std::cell::{Cell, RefCell};
 
     #[derive(Debug, Default, CompositeTemplate)]
     #[template(resource = "/com/github/melix99/telegrand/ui/content-message-sticker.ui")]
     pub(crate) struct MessageSticker {
+        pub(super) format: OnceCell<StickerFormat>,
+        pub(super) aspect_ratio: Cell<f64>,
         pub(super) message: RefCell<Option<Message>>,
         #[template_child]
-        pub(super) picture: TemplateChild<StickerPicture>,
+        pub(super) overlay: TemplateChild<gtk::Overlay>,
+        #[template_child]
+        pub(super) bin: TemplateChild<adw::Bin>,
         #[template_child]
         pub(super) indicators: TemplateChild<MessageIndicators>,
     }
@@ -74,7 +78,31 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for MessageSticker {}
+    impl WidgetImpl for MessageSticker {
+        fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
+            const SIZE: i32 = 208;
+            let aspect_ratio = self.aspect_ratio.get();
+            let min_size = self.overlay.measure(orientation, for_size).0;
+            let size = if let gtk::Orientation::Horizontal = orientation {
+                if aspect_ratio >= 1.0 {
+                    SIZE
+                } else {
+                    (SIZE as f64 * aspect_ratio) as i32
+                }
+            } else if aspect_ratio >= 1.0 {
+                (SIZE as f64 / aspect_ratio) as i32
+            } else {
+                SIZE
+            }
+            .max(min_size);
+
+            (size, size, -1, -1)
+        }
+
+        fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
+            self.overlay.allocate(width, height, baseline, None);
+        }
+    }
     impl MessageBaseImpl for MessageSticker {}
 }
 
@@ -95,15 +123,19 @@ impl MessageBaseExt for MessageSticker {
 
         imp.indicators.set_message(message.clone().upcast());
 
-        imp.picture.set_texture(None);
-
         if let MessageContent::MessageSticker(data) = message.content().0 {
-            self.imp()
-                .picture
-                .set_aspect_ratio(data.sticker.width as f64 / data.sticker.height as f64);
+            let sticker = data.sticker;
 
-            if data.sticker.sticker.local.is_downloading_completed {
-                self.load_sticker(&data.sticker.sticker.local.path);
+            imp.format.set(sticker.format).unwrap();
+
+            imp.aspect_ratio
+                .set(sticker.width as f64 / sticker.height as f64);
+
+            let preview = StickerPreview::new(sticker.outline.clone());
+            self.imp().bin.set_child(Some(&preview));
+
+            if sticker.sticker.local.is_downloading_completed {
+                self.load_sticker(&sticker.sticker.local.path);
             } else {
                 let (sender, receiver) =
                     glib::MainContext::sync_channel::<File>(Default::default(), 5);
@@ -122,45 +154,67 @@ impl MessageBaseExt for MessageSticker {
                 message
                     .chat()
                     .session()
-                    .download_file(data.sticker.sticker.id, sender);
+                    .download_file(sticker.sticker.id, sender);
             }
         }
-
         imp.message.replace(Some(message));
+
         self.notify("message");
     }
 }
 
 impl MessageSticker {
     fn load_sticker(&self, path: &str) {
-        let picture = &*self.imp().picture;
-        let file = gio::File::for_path(path);
-        spawn(clone!(@weak picture => async move {
-            match file.load_bytes_future().await {
-                Ok((bytes, _)) => {
-                    let flat_samples = ImageReader::with_format(Cursor::new(bytes), ImageFormat::WebP)
-                        .decode()
-                        .unwrap()
-                        .into_rgba8()
-                        .into_flat_samples();
+        let path = path.to_owned();
+        spawn(clone!(@weak self as obj => async move {
+            let widget: gtk::Widget = match obj.imp().format.get().unwrap() {
+            StickerFormat::Tgs => {
+                let animation = rlt::Animation::from_filename(&path);
+                animation.set_loop(true);
+                animation.use_cache(true);
+                animation.play();
+                animation.upcast()
+            }
+            StickerFormat::Webp => {
+                let file = gio::File::for_path(&path);
+                match file.load_bytes_future().await {
+                    Ok((bytes, _)) => {
+                        let flat_samples =
+                            ImageReader::with_format(Cursor::new(bytes), ImageFormat::WebP)
+                                .decode()
+                                .unwrap()
+                                .into_rgba8()
+                                .into_flat_samples();
 
-                    let (stride, width, height) = flat_samples.extents();
-                    let gtk_stride = stride * width;
+                        let (stride, width, height) = flat_samples.extents();
+                        let gtk_stride = stride * width;
 
-                    let bytes = glib::Bytes::from_owned(flat_samples.samples);
-                    let texture = gdk::MemoryTexture::new(
-                        width as i32,
-                        height as i32,
-                        gdk::MemoryFormat::R8g8b8a8,
-                        &bytes,
-                        gtk_stride,
-                    );
-                    picture.set_texture(Some(texture.upcast()));
-                }
-                Err(e) => {
-                    log::warn!("Failed to load a sticker: {}", e);
+                        let bytes = glib::Bytes::from_owned(flat_samples.samples);
+                        let texture = gdk::MemoryTexture::new(
+                            width as i32,
+                            height as i32,
+                            gdk::MemoryFormat::R8g8b8a8,
+                            &bytes,
+                            gtk_stride,
+                        );
+
+                        let picture = gtk::Picture::new();
+
+                        picture.set_paintable(Some(&texture));
+
+                        picture.upcast()
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to load a sticker: {}", e);
+                        return;
+                    }
                 }
             }
+            _ => unimplemented!(),
+        };
+
+        obj.imp().bin.set_child(Some(&widget));
+
         }));
     }
 }

@@ -320,7 +320,7 @@ impl MessageRow {
                     self.update_specific_content::<_, MessagePhoto>(message_.clone());
                 }
                 MessageContent::MessageSticker(data)
-                    if data.sticker.format == StickerFormat::Webp =>
+                    if matches!(data.sticker.format, StickerFormat::Webp | StickerFormat::Tgs) =>
                 {
                     self.update_specific_content::<_, MessageSticker>(message_.clone());
                 }
