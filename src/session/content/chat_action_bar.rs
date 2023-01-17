@@ -250,7 +250,7 @@ impl ChatActionBar {
             let chooser = gtk::EmojiChooser::new();
             chooser.set_parent(parent);
             chooser.connect_emoji_picked(clone!(@weak self as obj => move |_, emoji| {
-                obj.imp().message_entry.insert_at_cursor(emoji);
+                obj.imp().message_entry.insert_at_cursor(emoji.trim_end_matches('\u{fe0f}'));
             }));
             chooser.connect_hide(clone!(@weak self as obj => move |_| {
                 obj.imp().message_entry.grab_focus();
@@ -303,9 +303,10 @@ impl ChatActionBar {
                     client_id,
                 )
                 .await;
+
                 if let Err(e) = result {
-                    log::warn!("Error sending a message: {:?}", e);
-                }
+                    log::warn!("Error sending a message: {:?}", e)
+                };
 
                 self.reset();
             }

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="ContentMessageAnimatedEmoji" parent="ContentMessageBase">
+    <child>
+      <object class="GtkBox" id="gtk_box">
+        <property name="orientation">vertical</property>
+        <property name="vexpand">true</property>
+        <child>
+          <object class="GtkGestureClick" id="click">
+            <property name="button">1</property>
+          </object>
+        </child>
+        <child>
+          <object class="AdwBin" id="bin">
+            <property name="vexpand">true</property>
+          </object>
+        </child>
+        <child>
+          <object class="MessageIndicators" id="indicators">
+            <property name="halign">end</property>
+            <property name="valign">end</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

@@ -1,3 +1,4 @@
+mod animated_emoji;
 mod base;
 mod bubble;
 mod document;
@@ -7,10 +8,10 @@ mod label;
 mod media_picture;
 mod photo;
 mod sticker;
-mod sticker_picture;
 mod text;
 mod video;
 
+use self::animated_emoji::MessageAnimatedEmoji;
 use self::base::{MessageBase, MessageBaseExt, MessageBaseImpl};
 use self::bubble::MessageBubble;
 use self::document::MessageDocument;
@@ -19,7 +20,6 @@ use self::label::MessageLabel;
 use self::media_picture::MediaPicture;
 use self::photo::MessagePhoto;
 use self::sticker::MessageSticker;
-use self::sticker_picture::StickerPicture;
 use self::text::MessageText;
 use self::video::MessageVideo;
 
@@ -315,6 +315,9 @@ impl MessageRow {
                 // https://github.com/melix99/telegrand/issues/410 is fixed
                 MessageContent::MessageAnimation(_) /*| MessageContent::MessageVideo(_)*/ => {
                     self.update_specific_content::<_, MessageVideo>(message_.clone());
+                }
+                MessageContent::MessageAnimatedEmoji(_) => {
+                    self.update_specific_content::<_, MessageAnimatedEmoji>(message_.clone());
                 }
                 MessageContent::MessagePhoto(_) => {
                     self.update_specific_content::<_, MessagePhoto>(message_.clone());

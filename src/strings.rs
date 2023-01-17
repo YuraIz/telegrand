@@ -77,6 +77,7 @@ pub(crate) fn message_content(message: &Message) -> String {
     match message.content().0 {
         MessageText(data) => data.text.text,
         MessageAnimation(data) => message_animation(&data.caption.text),
+        MessageAnimatedEmoji(data) => data.emoji,
         MessageAudio(data) => {
             message_audio(&data.audio.title, &data.audio.performer, &data.caption.text)
         }

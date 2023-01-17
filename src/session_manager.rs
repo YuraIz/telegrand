@@ -366,15 +366,7 @@ impl SessionManager {
             },
         );
 
-        spawn(async move {
-            send_log_level(client_id).await;
-
-            // TODO: Hopefully we'll support animated emoji at some point
-            let result = disable_animated_emoji(client_id, true).await;
-            if let Err(e) = result {
-                log::warn!("Error disabling animated emoji: {:?}", e);
-            }
-        });
+        spawn(send_log_level(client_id));
     }
 
     /// This function is used to add a new session for a so far unknown account. This means it will
@@ -382,15 +374,7 @@ impl SessionManager {
     pub(crate) fn add_new_session(&self, use_test_dc: bool) {
         let client_id = tdlib::create_client();
         self.init_new_session(client_id, use_test_dc);
-        spawn(async move {
-            send_log_level(client_id).await;
-
-            // TODO: Hopefully we'll support animated emoji at some point
-            let result = disable_animated_emoji(client_id, true).await;
-            if let Err(e) = result {
-                log::warn!("Error disabling animated emoji: {:?}", e);
-            }
-        });
+        spawn(send_log_level(client_id));
     }
 
     /// This function initializes everything that's needed for adding a new session for the given
@@ -855,18 +839,6 @@ fn generate_database_dir_base_name() -> String {
 async fn set_online(client_id: i32, value: bool) -> Result<(), types::Error> {
     functions::set_option(
         "online".to_string(),
-        Some(enums::OptionValue::Boolean(types::OptionValueBoolean {
-            value,
-        })),
-        client_id,
-    )
-    .await
-}
-
-/// Helper function to enable/disable animated emoji for a client.
-async fn disable_animated_emoji(client_id: i32, value: bool) -> Result<(), types::Error> {
-    functions::set_option(
-        "disable_animated_emoji".to_string(),
         Some(enums::OptionValue::Boolean(types::OptionValueBoolean {
             value,
         })),
