@@ -153,6 +153,13 @@ impl MessageRow {
     }
 
     fn reply(&self) {
+        if let Some(content) = &*self.imp().content.borrow() {
+            match content.widget_name().as_str() {
+                "ContentMessageAnimatedEmoji" => return,
+                _ => {}
+            }
+        }
+
         if let Ok(message) = self.message().downcast::<Message>() {
             self.activate_action("chat-history.reply", Some(&message.id().to_variant()))
                 .unwrap();

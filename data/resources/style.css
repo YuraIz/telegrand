@@ -13,6 +13,10 @@
   background: @accent_color;
 }
 
+.mirrored {
+  transform: scaleX(-1);
+}
+
 /* Account switcher */
 #account-switcher row {
   border-radius: 10px;

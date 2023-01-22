@@ -3,6 +3,7 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gio, glib, CompositeTemplate};
 
+use crate::session::components::RltOverlay;
 use crate::session::content::{ChatActionBar, ChatInfoWindow, ItemRow};
 use crate::tdlib::{Chat, ChatHistoryError, ChatType, SponsoredMessage};
 use crate::utils::spawn;
@@ -26,6 +27,8 @@ mod imp {
         pub(super) is_auto_scrolling: Cell<bool>,
         pub(super) sticky: Cell<bool>,
         #[template_child]
+        pub(super) rlt_overlay: TemplateChild<RltOverlay>,
+        #[template_child]
         pub(super) window_title: TemplateChild<adw::WindowTitle>,
         #[template_child]
         pub(super) scrolled_window: TemplateChild<gtk::ScrolledWindow>,
@@ -43,6 +46,7 @@ mod imp {
                 message_menu: Default::default(),
                 is_auto_scrolling: Default::default(),
                 sticky: Cell::new(false),
+                rlt_overlay: Default::default(),
                 window_title: Default::default(),
                 scrolled_window: Default::default(),
                 list_view: Default::default(),

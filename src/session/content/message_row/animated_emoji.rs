@@ -5,16 +5,19 @@ use gtk::{glib, CompositeTemplate};
 use tdlib::enums::MessageContent;
 use tdlib::types::File;
 
-use crate::session::components::StickerPreview;
+use crate::session::components::{RltOverlay, StickerPreview};
 use crate::session::content::message_row::{MessageBase, MessageBaseImpl, MessageIndicators};
 use crate::tdlib::Message;
 
 use super::base::MessageBaseExt;
 
 mod imp {
+    use crate::utils::spawn;
+
     use super::*;
     use once_cell::sync::Lazy;
     use std::cell::RefCell;
+    use tdlib::functions;
 
     #[derive(Debug, Default, CompositeTemplate)]
     #[template(resource = "/com/github/melix99/telegrand/ui/content-message-animated-emoji.ui")]
@@ -82,6 +85,59 @@ mod imp {
                             if !animation.is_playing() {
                                 animation.play();
                             }
+
+                            let Some(message) = &*imp.message.borrow() else {return};
+
+                            let chat_id = message.chat().id();
+                            let message_id = message.id();
+                            let client_id = message.chat().session().client_id();
+                            let outgoing = message.is_outgoing();
+
+                            let session = message.chat().session();
+
+                            spawn(clone!(@to-owned imp => async move {
+
+                                if let Ok(tdlib::enums::Sticker::Sticker(sticker)) = functions::click_animated_emoji_message(chat_id, message_id, client_id).await {
+                                    let file = sticker.sticker;
+
+                                    let imp = imp.obj();
+
+                                let append_animation = move |imp: &MessageAnimatedEmoji, path: &str| {
+                                    let animation = rlt::Animation::from_filename(&path);
+
+                                    let shift_x = if !outgoing {
+                                        animation.add_css_class("mirrored");
+                                        -100
+                                    } else {
+                                        100
+                                    } + glib::random_int_range(-10, 10);
+
+                                    let shift_y = glib::random_int_range(-10, 10);
+
+                                    RltOverlay::append(&imp.bin.get(), animation, 300, shift_x, shift_y);
+                                };
+
+                                if file.local.is_downloading_completed {
+                                    append_animation(&imp.imp(), &file.local.path);
+                                } else {
+                                    let (sender, receiver) =
+                                        glib::MainContext::sync_channel::<File>(Default::default(), 5);
+
+                                    receiver.attach(
+                                        None,
+                                        clone!(@to-owned imp => @default-return glib::Continue(false), move |file| {
+                                            if file.local.is_downloading_completed {
+                                                append_animation(imp.imp(), &file.local.path);
+                                            }
+
+                                            glib::Continue(true)
+                                        }),
+                                    );
+
+                                    session.download_file(file.id, sender);
+                                }
+                                }
+                            }))
                         }
                     }
                 }));
