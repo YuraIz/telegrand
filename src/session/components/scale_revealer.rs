@@ -103,7 +103,7 @@ mod imp {
         fn snapshot(&self, snapshot: &gtk::Snapshot) {
             let obj = self.obj();
             if let Some(child) = obj.child() {
-                let progress = self.animation.get().unwrap().value();
+                let progress = self.animation.get().unwrap().value() as f32;
                 if progress == 1.0 {
                     // The transition progress is at 100%, so just show the child
                     obj.snapshot_child(&child, snapshot);
@@ -120,44 +120,41 @@ mod imp {
                         );
                         graphene::Rect::new(0.0, 0.0, 100.0, 100.0)
                     });
-                let rev_progress = (1.0 - progress).abs();
 
-                let x_scale = source_bounds.width() / obj.width() as f32;
-                let y_scale = source_bounds.height() / obj.height() as f32;
+                let interpolate = |start: f32, end: f32| start + (end - start) * progress;
 
-                let x_scale = 1.0 + (x_scale - 1.0) * rev_progress as f32;
-                let y_scale = 1.0 + (y_scale - 1.0) * rev_progress as f32;
+                let obj_width = obj.width() as f32;
+                let obj_height = obj.height() as f32;
 
-                let x = source_bounds.x() * rev_progress as f32;
-                let y = source_bounds.y() * rev_progress as f32;
+                let (fin_width, fin_height) = fit_rect(
+                    source_bounds.width(),
+                    source_bounds.height(),
+                    obj_width,
+                    obj_height,
+                );
+
+                let fin_x = (obj_width - fin_width) * 0.5;
+                let fin_y = (obj_height - fin_height) * 0.5;
+
+                let x = interpolate(source_bounds.x(), fin_x);
+                let y = interpolate(source_bounds.y(), fin_y);
+
+                let width = interpolate(source_bounds.width(), fin_width);
+                let height = interpolate(source_bounds.height(), fin_height);
+
+                let scale = (width / obj_width).max(height / obj_height);
 
                 snapshot.translate(&graphene::Point::new(x, y));
-                snapshot.scale(x_scale, y_scale);
+                snapshot.scale(scale, scale);
 
-                let source_widget_texture_ref = self.source_widget_texture.borrow();
+                if let Some(texture) = &*self.source_widget_texture.borrow() {
+                    snapshot.push_cross_fade(progress as f64);
+                    texture.snapshot(snapshot, fin_width as _, fin_height as _);
+                    snapshot.pop();
 
-                if let Some(source_widget_texture) = source_widget_texture_ref.as_ref() {
-                    if progress > 0.0 {
-                        // We're in the middle of the cross fade transition, so...
-                        // do the cross fade transition.
-                        snapshot.push_cross_fade(progress);
-
-                        source_widget_texture.snapshot(
-                            snapshot,
-                            obj.width() as f64,
-                            obj.height() as f64,
-                        );
-                        snapshot.pop();
-
-                        obj.snapshot_child(&child, snapshot);
-                        snapshot.pop();
-                    } else if progress <= 0.0 {
-                        source_widget_texture.snapshot(
-                            snapshot,
-                            obj.width() as f64,
-                            obj.height() as f64,
-                        );
-                    }
+                    snapshot.translate(&graphene::Point::new(-fin_x, -fin_y));
+                    obj.snapshot_child(&child, snapshot);
+                    snapshot.pop();
                 } else {
                     log::warn!(
                         "The source widget texture is None, using child snapshot as fallback"
@@ -270,4 +267,15 @@ fn render_widget_to_texture(widget: &impl IsA<gtk::Widget>) -> Option<gdk::Textu
     let native = widget.native()?;
 
     Some(native.renderer().render_texture(node, None))
+}
+
+fn fit_rect(inner_width: f32, inner_height: f32, width: f32, height: f32) -> (f32, f32) {
+    let inner_ar = inner_width / inner_height;
+    let aspect_ratio = width / height;
+
+    if inner_ar > aspect_ratio {
+        (width, height * aspect_ratio / inner_ar)
+    } else {
+        (width / aspect_ratio * inner_ar, height)
+    }
 }
