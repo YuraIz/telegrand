@@ -5,6 +5,7 @@ mod chat_history_model;
 mod chat_history_row;
 mod chat_info_window;
 mod event_row;
+mod gradient_bg;
 mod message_row;
 mod send_photo_dialog;
 

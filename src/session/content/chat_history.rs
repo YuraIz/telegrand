@@ -2,10 +2,11 @@ use adw::prelude::*;
 use gettextrs::gettext;
 use glib::clone;
 use gtk::subclass::prelude::*;
-use gtk::{gio, glib, CompositeTemplate};
+use gtk::{gdk, gio, glib, CompositeTemplate};
 use tdlib::enums::ChatMemberStatus;
 use tdlib::functions;
 
+use super::gradient_bg::GradientBackground;
 use crate::session::content::{
     ChatActionBar, ChatHistoryError, ChatHistoryModel, ChatHistoryRow, ChatInfoWindow,
 };
@@ -27,12 +28,15 @@ mod imp {
     pub(crate) struct ChatHistory {
         pub(super) compact: Cell<bool>,
         pub(super) chat: RefCell<Option<Chat>>,
+        pub(super) chat_handler: RefCell<Option<glib::SignalHandlerId>>,
         pub(super) model: RefCell<Option<ChatHistoryModel>>,
         pub(super) message_menu: OnceCell<gtk::PopoverMenu>,
         pub(super) is_auto_scrolling: Cell<bool>,
         pub(super) sticky: Cell<bool>,
         #[template_child]
         pub(super) window_title: TemplateChild<adw::WindowTitle>,
+        #[template_child]
+        pub(super) gradient_background: TemplateChild<GradientBackground>,
         #[template_child]
         pub(super) scrolled_window: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]
@@ -133,6 +137,28 @@ mod imp {
             let obj = self.obj();
 
             obj.setup_expressions();
+
+            fn bg_colors(dark: bool) -> [gdk::RGBA; 4] {
+                let colors: Vec<_> = if dark {
+                    ["#1e1e1e", "#1e1e1e", "#1e1e1e", "#1e1e1e"]
+                } else {
+                    ["#dbddbb", "#6ba587", "#d5d88d", "#88b884"]
+                }
+                .into_iter()
+                .map(|s| gdk::RGBA::parse(s).unwrap())
+                .collect();
+                colors.try_into().unwrap()
+            }
+
+            let style_manager = adw::StyleManager::default();
+            obj.imp()
+                .gradient_background
+                .set_colors(bg_colors(style_manager.is_dark()));
+            style_manager.connect_dark_notify(clone!(@weak obj => move |style_manager| {
+                obj.imp()
+                    .gradient_background
+                    .set_colors(bg_colors(style_manager.is_dark()));
+            }));
 
             let adj = self.list_view.vadjustment().unwrap();
             adj.connect_value_changed(clone!(@weak obj => move |adj| {
@@ -343,6 +369,18 @@ impl ChatHistory {
                     }
                 }
             }));
+
+            let handler = chat.connect_new_message(clone!(@weak self as obj => move |_, msg| {
+                if msg.is_outgoing() {
+                    obj.imp().gradient_background.animate();
+                }
+            }));
+
+            if let Some(old_handler) = self.imp().chat_handler.replace(Some(handler)) {
+                if let Some(ref old_chat) = &*imp.chat.borrow() {
+                    old_chat.disconnect(old_handler);
+                }
+            }
 
             let selection = gtk::NoSelection::new(Some(list_view_model));
             imp.list_view.set_model(Some(&selection));

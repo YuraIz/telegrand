@@ -9,6 +9,8 @@ button.scroll-to-bottom {
 /* sticker must be repainted to a text color in messages */
 messagesticker.needs-repainting > overlay > widget > widget {
   filter: invert(1);
+messagebubble {
+  background: #303030;
 }
 
 .chat-list row .unread-count-muted {
