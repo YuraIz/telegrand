@@ -119,8 +119,13 @@ sidebarsearchitemrow {
   border-spacing: 12px;
 }
 
+.chat-history {
+  background-color: transparent;
+}
+
 .chat-history listview {
   padding: 3px 0;
+  background-color: transparent;
 }
 
 .chat-history row {
@@ -135,7 +140,7 @@ button.scroll-to-bottom {
 }
 
 messagebubble {
-  background: alpha(currentColor, 0.08);
+  background: alpha(white, 0.8);
   border-radius: 15px;
 }
 
@@ -224,7 +229,10 @@ messageindicators,
 .event-row {
   font-size: smaller;
   font-weight: bold;
-  padding: 3px;
+  background-color: alpha(@view_fg_color, 0.2);
+  color: white;
+  border-radius: 9999px;
+  padding: 3px 6px;
 }
 
 .sender-text-red {

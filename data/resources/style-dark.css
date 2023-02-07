@@ -2,6 +2,10 @@
   background-color: @dark_2;
 }
 
+messagebubble {
+  background: #303030;
+}
+
 .chat-list row .unread-count-muted {
   background-color: @dark_2;
 }

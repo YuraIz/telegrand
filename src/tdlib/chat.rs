@@ -162,6 +162,16 @@ mod imp {
                 _ => unimplemented!(),
             }
         }
+
+        fn signals() -> &'static [glib::subclass::Signal] {
+            static SIGNALS: Lazy<Vec<glib::subclass::Signal>> = Lazy::new(|| {
+                vec![glib::subclass::Signal::builder("new-outgoing-message")
+                    .return_type::<()>()
+                    .build()]
+            });
+
+            SIGNALS.as_ref()
+        }
     }
 }
 
@@ -236,11 +246,13 @@ impl Chat {
             ChatUnreadMentionCount(update) => {
                 self.set_unread_mention_count(update.unread_mention_count)
             }
-            DeleteMessages(_)
-            | MessageContent(_)
-            | MessageEdited(_)
-            | MessageSendSucceeded(_)
-            | NewMessage(_) => {
+            DeleteMessages(_) | MessageContent(_) | MessageEdited(_) | MessageSendSucceeded(_) => {
+                self.history().handle_update(update);
+            }
+            NewMessage(ref data) => {
+                if data.message.is_outgoing {
+                    self.emit_by_name::<()>("new-outgoing-message", &[]);
+                }
                 self.history().handle_update(update);
             }
             MessageMentionRead(update) => {
@@ -337,6 +349,16 @@ impl Chat {
         }
         self.imp().last_message.replace(last_message);
         self.notify("last-message");
+    }
+
+    pub(crate) fn connect_new_outgoing_message<F: Fn() + 'static>(
+        &self,
+        f: F,
+    ) -> glib::SignalHandlerId {
+        self.connect_local("new-outgoing-message", false, move |_| {
+            f();
+            None
+        })
     }
 
     pub(crate) fn unread_mention_count(&self) -> i32 {

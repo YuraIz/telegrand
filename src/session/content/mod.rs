@@ -2,6 +2,7 @@ mod chat_action_bar;
 mod chat_history;
 mod chat_info_window;
 mod event_row;
+mod gradient_bg;
 mod item_row;
 mod message_row;
 mod send_photo_dialog;

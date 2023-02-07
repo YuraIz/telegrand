@@ -85,47 +85,51 @@
               </object>
             </child>
             <child>
-              <object class="GtkScrolledWindow" id="scrolled_window">
-                <property name="vexpand">True</property>
-                <property name="hscrollbar-policy">never</property>
-                <style>
-                  <class name="view"/>
-                  <class name="chat-history"/>
-                </style>
-                <property name="child">
-                  <object class="AdwClampScrollable">
-                    <property name="maximum-size">800</property>
-                    <property name="tightening-threshold">600</property>
-                    <property name="vscroll-policy">natural</property>
-                    <property name="child">
-                      <object class="GtkListView" id="list_view">
-                        <property name="reversed">True</property>
-                        <property name="factory">
-                          <object class="GtkBuilderListItemFactory">
-                            <property name="bytes"><![CDATA[
-<?xml version="1.0" encoding="UTF-8"?>
-<interface>
-  <template class="GtkListItem">
-    <property name="activatable">False</property>
-    <property name="child">
-      <object class="ContentItemRow">
-        <property name="margin-top">3</property>
-        <property name="margin-bottom">3</property>
-        <binding name="item">
-          <lookup name="item">GtkListItem</lookup>
-        </binding>
-      </object>
-    </property>
-  </template>
-</interface>
-                        ]]></property>
-                          </object>
-                        </property>
-                      </object>
-                    </property>
-                  </object>
-                </property>
-              </object>
+              <object class="ComponentsGradientBackground" id="gradient_background">
+              <child>
+                <object class="GtkScrolledWindow" id="scrolled_window">
+                  <property name="vexpand">True</property>
+                  <property name="hscrollbar-policy">never</property>
+                  <style>
+                    <class name="view"/>
+                    <class name="chat-history"/>
+                  </style>
+                  <property name="child">
+                    <object class="AdwClampScrollable">
+                      <property name="maximum-size">800</property>
+                      <property name="tightening-threshold">600</property>
+                      <property name="vscroll-policy">natural</property>
+                      <property name="child">
+                        <object class="GtkListView" id="list_view">
+                          <property name="reversed">True</property>
+                          <property name="factory">
+                            <object class="GtkBuilderListItemFactory">
+                              <property name="bytes"><![CDATA[
+  <?xml version="1.0" encoding="UTF-8"?>
+  <interface>
+    <template class="GtkListItem">
+      <property name="activatable">False</property>
+      <property name="child">
+        <object class="ContentItemRow">
+          <property name="margin-top">3</property>
+          <property name="margin-bottom">3</property>
+          <binding name="item">
+            <lookup name="item">GtkListItem</lookup>
+          </binding>
+        </object>
+      </property>
+    </template>
+  </interface>
+                          ]]></property>
+                            </object>
+                          </property>
+                        </object>
+                      </property>
+                    </object>
+                  </property>
+                </object>
+              </child>
+             </object>
             </child>
           </object>
         </child>
