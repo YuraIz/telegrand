@@ -140,7 +140,7 @@ mod imp {
 
             fn bg_colors(dark: bool) -> [gdk::RGBA; 4] {
                 let colors: Vec<_> = if dark {
-                    ["#1e1e1e", "#1e1e1e", "#1e1e1e", "#1e1e1e"]
+                    ["#fec496", "#dd6cb9", "#962fbf", "#4f5bd5"]
                 } else {
                     ["#dbddbb", "#6ba587", "#d5d88d", "#88b884"]
                 }
@@ -151,13 +151,16 @@ mod imp {
             }
 
             let style_manager = adw::StyleManager::default();
-            obj.imp()
-                .gradient_background
-                .set_colors(bg_colors(style_manager.is_dark()));
+            let bg = &*obj.imp().gradient_background;
+            let dark = style_manager.is_dark();
+            bg.set_colors(bg_colors(dark));
+            bg.set_dark(dark);
+
             style_manager.connect_dark_notify(clone!(@weak obj => move |style_manager| {
-                obj.imp()
-                    .gradient_background
-                    .set_colors(bg_colors(style_manager.is_dark()));
+                let bg = &*obj.imp().gradient_background;
+                let dark = style_manager.is_dark();
+                bg.set_colors(bg_colors(dark));
+                bg.set_dark(dark);
             }));
 
             let adj = self.list_view.vadjustment().unwrap();
