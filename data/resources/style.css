@@ -140,6 +140,7 @@ button.scroll-to-bottom {
 }
 
 messagebubble {
+  /* don't forget to edit pattern shader if change opacity */
   background: alpha(white, 0.8);
   border-radius: 15px;
 }

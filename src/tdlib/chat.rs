@@ -165,7 +165,8 @@ mod imp {
 
         fn signals() -> &'static [glib::subclass::Signal] {
             static SIGNALS: Lazy<Vec<glib::subclass::Signal>> = Lazy::new(|| {
-                vec![glib::subclass::Signal::builder("new-outgoing-message")
+                vec![glib::subclass::Signal::builder("new-message")
+                    .param_types([Message::static_type()])
                     .return_type::<()>()
                     .build()]
             });
@@ -250,9 +251,8 @@ impl Chat {
                 self.history().handle_update(update);
             }
             NewMessage(ref data) => {
-                if data.message.is_outgoing {
-                    self.emit_by_name::<()>("new-outgoing-message", &[]);
-                }
+                let message = Message::new(data.message.clone(), self);
+                self.emit_by_name::<()>("new-message", &[&message]);
                 self.history().handle_update(update);
             }
             MessageMentionRead(update) => {
@@ -351,12 +351,13 @@ impl Chat {
         self.notify("last-message");
     }
 
-    pub(crate) fn connect_new_outgoing_message<F: Fn() + 'static>(
+    pub(crate) fn connect_new_message<F: Fn(&Message) + 'static>(
         &self,
         f: F,
     ) -> glib::SignalHandlerId {
-        self.connect_local("new-outgoing-message", false, move |_| {
-            f();
+        self.connect_local("new-message", false, move |values| {
+            let message = values[1].get().unwrap();
+            f(message);
             None
         })
     }

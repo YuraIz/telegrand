@@ -42,6 +42,46 @@ void mainImage(out vec4 fragColor,
 "#
 .as_bytes();
 
+const PATTERN_SHADER: &[u8] = r#"
+precision highp float;
+precision highp sampler2D;
+
+uniform bool dark;
+uniform sampler2D u_texture1;
+uniform sampler2D u_texture2;
+
+void mainImage(out vec4 fragColor,
+    in vec2 fragCoord,
+    in vec2 resolution,
+    in vec2 uv) {
+
+    vec4 messages = GskTexture(u_texture1, uv);
+    vec4 pattern = GskTexture(u_texture2, uv);
+
+    float message_alpha = dark ? 0.9 : 0.8;
+
+    // We don't need to draw pattern under semi-transparent messages
+    // But we need to draw it under antialized corners
+    if ((abs(messages.a - message_alpha) > 0.004) && messages.a != 1.0) {
+        vec4 pattern_color;
+
+        if (dark) {
+            float alpha = 1.0 - pattern.a * 0.3;
+            pattern_color = vec4(vec3(30.0 / 255.0), 1.0) * alpha;
+        } else {
+            float alpha = pattern.a * 0.1;
+            pattern_color = vec4(vec3(0.0), 1.0) * alpha;
+        }
+
+        // blend colors with premultiplied alpha
+        fragColor = messages + pattern_color * (1.0 - messages.a);
+    } else {
+        fragColor = messages;
+    }
+}
+"#
+.as_bytes();
+
 mod imp {
     use super::*;
     use gtk::glib::once_cell::sync::Lazy;
@@ -51,7 +91,8 @@ mod imp {
     use std::cell::{Cell, RefCell};
 
     pub struct GradientBackground {
-        pub(super) shader: RefCell<Option<gsk::GLShader>>,
+        pub(super) shaders: RefCell<Option<[gsk::GLShader; 2]>>,
+        pub(super) pattern: RefCell<gdk::Texture>,
 
         pub(super) progress: Cell<f32>,
         pub(super) phase: Cell<u32>,
@@ -60,12 +101,17 @@ mod imp {
         pub(super) color2: Cell<graphene::Vec3>,
         pub(super) color3: Cell<graphene::Vec3>,
         pub(super) color4: Cell<graphene::Vec3>,
+        pub(super) dark: Cell<bool>,
     }
 
     impl Default for GradientBackground {
         fn default() -> Self {
+            let pattern =
+                gdk::Texture::from_resource("/com/github/melix99/telegrand/images/pattern.svg");
+
             Self {
-                shader: Default::default(),
+                shaders: Default::default(),
+                pattern: RefCell::new(pattern),
 
                 progress: Default::default(),
                 phase: Default::default(),
@@ -74,6 +120,7 @@ mod imp {
                 color2: Cell::new(graphene::Vec3::new(1.0, 1.0, 0.5)),
                 color3: Cell::new(graphene::Vec3::new(0.1, 1.0, 1.0)),
                 color4: Cell::new(graphene::Vec3::new(0.5, 0.0, 1.0)),
+                dark: Default::default(),
             }
         }
     }
@@ -125,6 +172,7 @@ mod imp {
                     glib::ParamSpecBoxed::builder::<gdk::RGBA>("color2").build(),
                     glib::ParamSpecBoxed::builder::<gdk::RGBA>("color3").build(),
                     glib::ParamSpecBoxed::builder::<gdk::RGBA>("color4").build(),
+                    glib::ParamSpecBoolean::builder("dark").build(),
                 ]
             });
 
@@ -132,27 +180,35 @@ mod imp {
         }
 
         fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
-            let color: gdk::RGBA = value.get().unwrap();
-            let color = graphene::Vec3::new(color.red(), color.green(), color.blue());
-            match pspec.name() {
-                "color1" => self.color1.set(color),
-                "color2" => self.color2.set(color),
-                "color3" => self.color3.set(color),
-                "color4" => self.color4.set(color),
-                _ => unreachable!(),
+            if pspec.name() == "dark" {
+                self.dark.set(value.get().unwrap());
+            } else {
+                let color: gdk::RGBA = value.get().unwrap();
+                let color = graphene::Vec3::new(color.red(), color.green(), color.blue());
+                match pspec.name() {
+                    "color1" => self.color1.set(color),
+                    "color2" => self.color2.set(color),
+                    "color3" => self.color3.set(color),
+                    "color4" => self.color4.set(color),
+                    _ => unreachable!(),
+                };
             }
             self.obj().queue_draw()
         }
 
         fn property(&self, _id: usize, pspec: &glib::ParamSpec) -> glib::Value {
-            let color = match pspec.name() {
-                "color1" => self.color1.get(),
-                "color2" => self.color2.get(),
-                "color3" => self.color3.get(),
-                "color4" => self.color4.get(),
-                _ => unreachable!(),
-            };
-            gdk::RGBA::new(color.x(), color.y(), color.z(), 1.0).to_value()
+            if pspec.name() == "dark" {
+                self.dark.get().to_value()
+            } else {
+                let color = match pspec.name() {
+                    "color1" => self.color1.get(),
+                    "color2" => self.color2.get(),
+                    "color3" => self.color3.get(),
+                    "color4" => self.color4.get(),
+                    _ => unreachable!(),
+                };
+                gdk::RGBA::new(color.x(), color.y(), color.z(), 1.0).to_value()
+            }
         }
 
         fn signals() -> &'static [Signal] {
@@ -182,40 +238,67 @@ mod imp {
             let widget = self.obj();
             widget.ensure_shader();
 
-            if let Some(shader) = &*self.shader.borrow() {
-                let wigth = widget.width() as f32;
-                let height = widget.height() as f32;
+            let Some([gradient_shader, pattern_shader]) = &*self.shaders.borrow() else {
+                return
+            };
 
-                if wigth == 0.0 || height == 0.0 {
-                    return;
-                }
+            let width = widget.width() as f32;
+            let height = widget.height() as f32;
 
-                let bounds = graphene::Rect::new(0.0, 0.0, wigth, height);
-
-                let args_builder = gsk::ShaderArgsBuilder::new(shader, None);
-
-                args_builder.set_vec3(0, &self.color1.get());
-                args_builder.set_vec3(1, &self.color2.get());
-                args_builder.set_vec3(2, &self.color3.get());
-                args_builder.set_vec3(3, &self.color4.get());
-
-                let progress = self.progress.get();
-                let state = self.phase.get() as usize;
-
-                let [p1, p2, p3, p4] = Self::calculate_positions(progress, state);
-
-                args_builder.set_vec2(4, &p1);
-                args_builder.set_vec2(5, &p2);
-                args_builder.set_vec2(6, &p3);
-                args_builder.set_vec2(7, &p4);
-
-                snapshot.push_gl_shader(shader, &bounds, &args_builder.to_args());
-                snapshot.pop();
+            if width == 0.0 || height == 0.0 {
+                return;
             }
+
+            let bounds = graphene::Rect::new(0.0, 0.0, width, height);
+
+            // background
+            let args_builder = gsk::ShaderArgsBuilder::new(gradient_shader, None);
+
+            args_builder.set_vec3(0, &self.color1.get());
+            args_builder.set_vec3(1, &self.color2.get());
+            args_builder.set_vec3(2, &self.color3.get());
+            args_builder.set_vec3(3, &self.color4.get());
+
+            let progress = self.progress.get();
+            let state = self.phase.get() as usize;
+
+            let [p1, p2, p3, p4] = Self::calculate_positions(progress, state);
+
+            args_builder.set_vec2(4, &p1);
+            args_builder.set_vec2(5, &p2);
+            args_builder.set_vec2(6, &p3);
+            args_builder.set_vec2(7, &p4);
+
+            snapshot.push_gl_shader(gradient_shader, &bounds, &args_builder.to_args());
+            snapshot.pop();
+
+            // pattern
+            let args_builder = gsk::ShaderArgsBuilder::new(pattern_shader, None);
+
+            args_builder.set_bool(0, self.dark.get());
+
+            snapshot.push_gl_shader(pattern_shader, &bounds, &args_builder.to_args());
 
             if let Some(child) = widget.first_child() {
                 widget.snapshot_child(&child, snapshot);
             }
+            snapshot.gl_shader_pop_texture();
+
+            let pattern = self.pattern.borrow().clone();
+
+            let pattern_bounds = graphene::Rect::new(
+                0.0,
+                0.0,
+                pattern.width() as f32 * 0.3,
+                pattern.height() as f32 * 0.3,
+            );
+
+            snapshot.push_repeat(&bounds, Some(&pattern_bounds));
+            snapshot.append_texture(&pattern, &pattern_bounds);
+            snapshot.pop();
+            snapshot.gl_shader_pop_texture();
+
+            snapshot.pop();
         }
     }
 
@@ -283,24 +366,37 @@ impl GradientBackground {
         self.set_property("color4", colors[3]);
     }
 
+    pub fn is_dark(&self) -> bool {
+        self.property("dark")
+    }
+
+    pub fn set_dark(&self, dark: bool) {
+        self.set_property("dark", dark)
+    }
+
     fn ensure_shader(&self) {
         let imp = self.imp();
-        if imp.shader.borrow().is_none() {
+        if imp.shaders.borrow().is_none() {
             let renderer = self.native().unwrap().renderer();
 
-            let shader = {
-                let bytes = glib::Bytes::from_static(GRADIENT_SHADER);
-                let shader = gsk::GLShader::from_bytes(&bytes);
-                shader.compile(&renderer).unwrap_or_else(|e| {
-                    panic!(
-                        "can't compile shader for gradient background {msg}",
-                        msg = e.message()
-                    )
-                });
-                shader
-            };
+            let sources = [GRADIENT_SHADER, PATTERN_SHADER];
 
-            imp.shader.replace(Some(shader));
+            let shaders: Vec<_> = sources
+                .iter()
+                .map(|source| {
+                    let bytes = glib::Bytes::from_static(source);
+                    let shader = gsk::GLShader::from_bytes(&bytes);
+                    shader.compile(&renderer).unwrap_or_else(|e| {
+                        panic!(
+                            "can't compile shader for gradient background {msg}",
+                            msg = e.message()
+                        )
+                    });
+                    shader
+                })
+                .collect();
+
+            imp.shaders.replace(shaders.try_into().ok());
         }
     }
 }
