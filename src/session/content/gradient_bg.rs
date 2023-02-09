@@ -1,6 +1,7 @@
 use adw::prelude::*;
 use gtk::subclass::prelude::*;
-use gtk::{gdk, glib, gsk};
+use gtk::{gdk, glib, graphene, gsk};
+use std::cell::{Cell, RefCell};
 
 const GRADIENT_SHADER: &[u8] = r#"
 // That shader was taken from Telegram for android source
@@ -86,10 +87,39 @@ mod imp {
     use gtk::glib::once_cell::sync::Lazy;
     use gtk::glib::subclass::Signal;
     use gtk::glib::{self, clone};
-    use gtk::graphene;
-    use std::cell::{Cell, RefCell};
+
+    struct TextureCache<T: PartialEq> {
+        texture: RefCell<Option<gdk::Texture>>,
+        params: RefCell<T>,
+    }
+
+    impl<T: PartialEq> TextureCache<T> {
+        fn try_get(&self, params: T) -> Option<gdk::Texture> {
+            if params == *self.params.borrow() {
+                self.texture.borrow().clone()
+            } else {
+                None
+            }
+        }
+
+        fn save(&self, params: T, texture: Option<gdk::Texture>) {
+            if params != *self.params.borrow() {
+                self.texture.replace(texture);
+                self.params.replace(params);
+            }
+        }
+    }
+
+    #[derive(PartialEq, Clone, Copy)]
+    struct GradientCacheParams {
+        size: (f32, f32),
+        colors: [graphene::Vec3; 4],
+        phase: u32,
+    }
 
     pub struct GradientBackground {
+        gradient_cache: TextureCache<GradientCacheParams>,
+
         pub(super) shaders: RefCell<Option<Option<[gsk::GLShader; 2]>>>,
         pub(super) pattern: RefCell<gdk::Texture>,
 
@@ -108,17 +138,31 @@ mod imp {
             let pattern =
                 gdk::Texture::from_resource("/com/github/melix99/telegrand/images/pattern.svg");
 
+            let color1 = graphene::Vec3::new(0.1, 1.0, 0.5);
+            let color2 = graphene::Vec3::new(1.0, 1.0, 0.5);
+            let color3 = graphene::Vec3::new(0.1, 1.0, 1.0);
+            let color4 = graphene::Vec3::new(0.5, 0.0, 1.0);
+
             Self {
                 shaders: Default::default(),
                 pattern: RefCell::new(pattern),
 
+                gradient_cache: TextureCache {
+                    texture: RefCell::new(None),
+                    params: RefCell::new(GradientCacheParams {
+                        size: (0.0, 0.0),
+                        colors: [color1, color2, color3, color4],
+                        phase: 0,
+                    }),
+                },
+
                 progress: Default::default(),
                 phase: Default::default(),
 
-                color1: Cell::new(graphene::Vec3::new(0.1, 1.0, 0.5)),
-                color2: Cell::new(graphene::Vec3::new(1.0, 1.0, 0.5)),
-                color3: Cell::new(graphene::Vec3::new(0.1, 1.0, 1.0)),
-                color4: Cell::new(graphene::Vec3::new(0.5, 0.0, 1.0)),
+                color1: Cell::new(color1),
+                color2: Cell::new(color2),
+                color3: Cell::new(color3),
+                color4: Cell::new(color4),
                 dark: Default::default(),
             }
         }
@@ -237,7 +281,7 @@ mod imp {
             let widget = self.obj();
             widget.ensure_shader();
 
-            let Some(Some([gradient_shader, pattern_shader])) = &*self.shaders.borrow() else {
+            let Some(Some([_, pattern_shader])) = &*self.shaders.borrow() else {
                 // fallback code
                 if let Some(child) = widget.first_child() {
                     widget.snapshot_child(&child, snapshot);
@@ -255,25 +299,36 @@ mod imp {
             let bounds = graphene::Rect::new(0.0, 0.0, width, height);
 
             // background
-            let args_builder = gsk::ShaderArgsBuilder::new(gradient_shader, None);
+            if self.progress.get() == 0.0 {
+                let texture = {
+                    let params = GradientCacheParams {
+                        size: (width, height),
+                        colors: [
+                            self.color1.get(),
+                            self.color2.get(),
+                            self.color3.get(),
+                            self.color4.get(),
+                        ],
+                        phase: self.phase.get(),
+                    };
 
-            args_builder.set_vec3(0, &self.color1.get());
-            args_builder.set_vec3(1, &self.color2.get());
-            args_builder.set_vec3(2, &self.color3.get());
-            args_builder.set_vec3(3, &self.color4.get());
+                    if let Some(texture) = self.gradient_cache.try_get(params) {
+                        texture
+                    } else {
+                        let renderer = self.obj().native().unwrap().renderer();
+                        let texture = renderer
+                            .render_texture(self.gradient_shader_node(&bounds), Some(&bounds));
 
-            let progress = self.progress.get();
-            let state = self.phase.get() as usize;
+                        self.gradient_cache.save(params, Some(texture.clone()));
 
-            let [p1, p2, p3, p4] = Self::calculate_positions(progress, state);
+                        texture
+                    }
+                };
 
-            args_builder.set_vec2(4, &p1);
-            args_builder.set_vec2(5, &p2);
-            args_builder.set_vec2(6, &p3);
-            args_builder.set_vec2(7, &p4);
-
-            snapshot.push_gl_shader(gradient_shader, &bounds, &args_builder.to_args());
-            snapshot.pop();
+                snapshot.append_texture(&texture, &bounds);
+            } else {
+                snapshot.append_node(self.gradient_shader_node(&bounds));
+            }
 
             // pattern
             let args_builder = gsk::ShaderArgsBuilder::new(pattern_shader, None);
@@ -306,6 +361,29 @@ mod imp {
     }
 
     impl GradientBackground {
+        fn gradient_shader_node(&self, bounds: &graphene::Rect) -> gsk::GLShaderNode {
+            let Some(Some([gradient_shader, _])) = &*self.shaders.borrow() else {
+                panic!()
+            };
+
+            let args_builder = gsk::ShaderArgsBuilder::new(gradient_shader, None);
+
+            args_builder.set_vec3(0, &self.color1.get());
+            args_builder.set_vec3(1, &self.color2.get());
+            args_builder.set_vec3(2, &self.color3.get());
+            args_builder.set_vec3(3, &self.color4.get());
+
+            let [p1, p2, p3, p4] =
+                Self::calculate_positions(self.progress.get(), self.phase.get() as usize);
+
+            args_builder.set_vec2(4, &p1);
+            args_builder.set_vec2(5, &p2);
+            args_builder.set_vec2(6, &p3);
+            args_builder.set_vec2(7, &p4);
+
+            gsk::GLShaderNode::new(gradient_shader, bounds, &args_builder.to_args(), &[])
+        }
+
         fn calculate_positions(progress: f32, phase: usize) -> [graphene::Vec2; 4] {
             static POSITIONS: [(f32, f32); 8] = [
                 (0.80, 0.10),
@@ -386,7 +464,7 @@ impl GradientBackground {
 
             let shaders: Vec<_> = sources
                 .iter()
-                .map(|source| {
+                .flat_map(|source| {
                     let bytes = glib::Bytes::from_static(source);
                     let shader = gsk::GLShader::from_bytes(&bytes);
                     if let Err(e) = shader.compile(&renderer) {
@@ -397,13 +475,14 @@ impl GradientBackground {
                     }
                     Some(shader)
                 })
-                .flatten()
                 .collect();
 
             let shaders = shaders.try_into().ok();
 
             if shaders.is_none() {
-                self.first_child().map(|c| c.add_css_class("fallback"));
+                if let Some(c) = self.first_child() {
+                    c.add_css_class("fallback")
+                }
             }
 
             imp.shaders.replace(Some(shaders));
