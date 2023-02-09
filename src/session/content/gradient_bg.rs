@@ -21,7 +21,6 @@ void mainImage(out vec4 fragColor,
                in vec2 fragCoord,
                in vec2 resolution,
                in vec2 uv) {
-    // vec2 uv = fragCoord.xy / resolution;
     uv.y = 1.0 - uv.y;
 
     float dp1 = distance(uv, p1);
@@ -91,7 +90,7 @@ mod imp {
     use std::cell::{Cell, RefCell};
 
     pub struct GradientBackground {
-        pub(super) shaders: RefCell<Option<[gsk::GLShader; 2]>>,
+        pub(super) shaders: RefCell<Option<Option<[gsk::GLShader; 2]>>>,
         pub(super) pattern: RefCell<gdk::Texture>,
 
         pub(super) progress: Cell<f32>,
@@ -238,8 +237,12 @@ mod imp {
             let widget = self.obj();
             widget.ensure_shader();
 
-            let Some([gradient_shader, pattern_shader]) = &*self.shaders.borrow() else {
-                return
+            let Some(Some([gradient_shader, pattern_shader])) = &*self.shaders.borrow() else {
+                // fallback code
+                if let Some(child) = widget.first_child() {
+                    widget.snapshot_child(&child, snapshot);
+                }
+                return;
             };
 
             let width = widget.width() as f32;
@@ -386,17 +389,24 @@ impl GradientBackground {
                 .map(|source| {
                     let bytes = glib::Bytes::from_static(source);
                     let shader = gsk::GLShader::from_bytes(&bytes);
-                    shader.compile(&renderer).unwrap_or_else(|e| {
-                        panic!(
-                            "can't compile shader for gradient background {msg}",
-                            msg = e.message()
-                        )
-                    });
-                    shader
+                    if let Err(e) = shader.compile(&renderer) {
+                        if e.message() != "The renderer does not support gl shaders" {
+                            log::error!("can't compile shader for gradient background {e}");
+                        }
+                        return None;
+                    }
+                    Some(shader)
                 })
+                .flatten()
                 .collect();
 
-            imp.shaders.replace(shaders.try_into().ok());
+            let shaders = shaders.try_into().ok();
+
+            if shaders.is_none() {
+                self.first_child().map(|c| c.add_css_class("fallback"));
+            }
+
+            imp.shaders.replace(Some(shaders));
         }
     }
 }

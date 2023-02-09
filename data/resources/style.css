@@ -118,12 +118,26 @@ sidebarsearchitemrow {
 listview.chat-history {
   background: transparent;
   padding: 3px 0;
-  background-color: transparent;
+  background: transparent;
 }
 
 listview.chat-history > row {
   margin: 2px 4px;
   border-radius: 9px;
+}
+
+/* Values for the cairo renderer */
+listview.chat-history.fallback {
+  background: @view_bg_color;
+}
+
+listview.chat-history.fallback messagebubble:not(.outgoing) {
+  background: alpha(currentColor, 0.08);
+}
+
+listview.chat-history.fallback .event-row {
+  background: transparent;
+  color: currentColor;
 }
 
 button.scroll-to-bottom {
