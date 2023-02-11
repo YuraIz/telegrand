@@ -88,7 +88,7 @@
             </child>
             <child>
               <object class="ComponentsBackground" id="background">
-                <child>
+                <property name="child">
                   <object class="GtkScrolledWindow" id="scrolled_window">
                     <property name="vexpand">True</property>
                     <property name="hscrollbar-policy">never</property>
@@ -127,7 +127,7 @@
                       </object>
                     </property>
                   </object>
-                </child>
+                </property>
               </object>
             </child>
           </object>
