@@ -6,7 +6,7 @@ use gtk::{gdk, gio, glib, CompositeTemplate};
 use tdlib::enums::ChatMemberStatus;
 use tdlib::functions;
 
-use super::gradient_bg::GradientBackground;
+use super::background::Background;
 use crate::session::content::{
     ChatActionBar, ChatHistoryError, ChatHistoryModel, ChatHistoryRow, ChatInfoWindow,
 };
@@ -36,7 +36,7 @@ mod imp {
         #[template_child]
         pub(super) window_title: TemplateChild<adw::WindowTitle>,
         #[template_child]
-        pub(super) gradient_background: TemplateChild<GradientBackground>,
+        pub(super) background: TemplateChild<Background>,
         #[template_child]
         pub(super) scrolled_window: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]
@@ -151,13 +151,13 @@ mod imp {
             }
 
             let style_manager = adw::StyleManager::default();
-            let bg = &*obj.imp().gradient_background;
+            let bg = &*obj.imp().background;
             let dark = style_manager.is_dark();
             bg.set_colors(bg_colors(dark));
             bg.set_dark(dark);
 
             style_manager.connect_dark_notify(clone!(@weak obj => move |style_manager| {
-                let bg = &*obj.imp().gradient_background;
+                let bg = &*obj.imp().background;
                 let dark = style_manager.is_dark();
                 bg.set_colors(bg_colors(dark));
                 bg.set_dark(dark);
@@ -375,7 +375,7 @@ impl ChatHistory {
 
             let handler = chat.connect_new_message(clone!(@weak self as obj => move |_, msg| {
                 if msg.is_outgoing() {
-                    obj.imp().gradient_background.animate();
+                    obj.imp().background.animate();
                 }
             }));
 
