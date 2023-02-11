@@ -2,7 +2,7 @@ use adw::prelude::*;
 use gettextrs::gettext;
 use glib::clone;
 use gtk::subclass::prelude::*;
-use gtk::{gdk, gio, glib, CompositeTemplate};
+use gtk::{gio, glib, CompositeTemplate};
 use tdlib::enums::ChatMemberStatus;
 use tdlib::functions;
 
@@ -137,31 +137,6 @@ mod imp {
             let obj = self.obj();
 
             obj.setup_expressions();
-
-            fn bg_colors(dark: bool) -> [gdk::RGBA; 4] {
-                let colors: Vec<_> = if dark {
-                    ["#fec496", "#dd6cb9", "#962fbf", "#4f5bd5"]
-                } else {
-                    ["#dbddbb", "#6ba587", "#d5d88d", "#88b884"]
-                }
-                .into_iter()
-                .map(|s| gdk::RGBA::parse(s).unwrap())
-                .collect();
-                colors.try_into().unwrap()
-            }
-
-            let style_manager = adw::StyleManager::default();
-            let bg = &*obj.imp().background;
-            let dark = style_manager.is_dark();
-            bg.set_colors(bg_colors(dark));
-            bg.set_dark(dark);
-
-            style_manager.connect_dark_notify(clone!(@weak obj => move |style_manager| {
-                let bg = &*obj.imp().background;
-                let dark = style_manager.is_dark();
-                bg.set_colors(bg_colors(dark));
-                bg.set_dark(dark);
-            }));
 
             let adj = self.list_view.vadjustment().unwrap();
             adj.connect_value_changed(clone!(@weak obj => move |adj| {
