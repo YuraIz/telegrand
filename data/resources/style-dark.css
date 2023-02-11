@@ -12,8 +12,13 @@ messagesticker.needs-repainting > overlay > widget > widget {
 }
 
 messagebubble:not(.outgoing) {
-  /* don't forget to edit pattern shader if change opacity */
+  /* don't forget to edit the pattern shader if change opacity */
   background: alpha(#303030, 0.9);
+}
+
+.event-row {
+  /* don't forget to edit the pattern shader if change opacity */
+  background-color: alpha(#404040, 0.8);
 }
 
 .chat-list row .unread-count-muted {
