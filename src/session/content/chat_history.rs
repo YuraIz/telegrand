@@ -6,7 +6,7 @@ use gtk::{gdk, gio, glib, CompositeTemplate};
 use tdlib::enums::ChatMemberStatus;
 use tdlib::functions;
 
-use super::gradient_bg::GradientBackground;
+use super::background::Background;
 use crate::session::content::{ChatActionBar, ChatInfoWindow, ItemRow};
 use crate::tdlib::{Chat, ChatHistoryError, ChatType, SponsoredMessage};
 use crate::utils::spawn;
@@ -33,7 +33,7 @@ mod imp {
         #[template_child]
         pub(super) window_title: TemplateChild<adw::WindowTitle>,
         #[template_child]
-        pub(super) gradient_background: TemplateChild<GradientBackground>,
+        pub(super) gradient_background: TemplateChild<Background>,
         #[template_child]
         pub(super) scrolled_window: TemplateChild<gtk::ScrolledWindow>,
         #[template_child]

@@ -85,7 +85,7 @@
               </object>
             </child>
             <child>
-              <object class="ComponentsGradientBackground" id="gradient_background">
+              <object class="ComponentsBackground" id="gradient_background">
               <child>
                 <object class="GtkScrolledWindow" id="scrolled_window">
                   <property name="vexpand">True</property>

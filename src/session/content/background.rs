@@ -117,7 +117,7 @@ mod imp {
         phase: u32,
     }
 
-    pub struct GradientBackground {
+    pub struct Background {
         gradient_cache: TextureCache<GradientCacheParams>,
 
         pub(super) shaders: RefCell<Option<Option<[gsk::GLShader; 2]>>>,
@@ -133,7 +133,7 @@ mod imp {
         pub(super) dark: Cell<bool>,
     }
 
-    impl Default for GradientBackground {
+    impl Default for Background {
         fn default() -> Self {
             let pattern =
                 gdk::Texture::from_resource("/com/github/melix99/telegrand/images/pattern.svg");
@@ -169,13 +169,13 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for GradientBackground {
-        const NAME: &'static str = "ComponentsGradientBackground";
-        type Type = super::GradientBackground;
+    impl ObjectSubclass for Background {
+        const NAME: &'static str = "ComponentsBackground";
+        type Type = super::Background;
         type ParentType = gtk::Widget;
     }
 
-    impl ObjectImpl for GradientBackground {
+    impl ObjectImpl for Background {
         fn constructed(&self) {
             self.parent_constructed();
 
@@ -262,7 +262,7 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for GradientBackground {
+    impl WidgetImpl for Background {
         fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
             if let Some(child) = self.obj().first_child() {
                 child.measure(orientation, for_size)
@@ -360,7 +360,7 @@ mod imp {
         }
     }
 
-    impl GradientBackground {
+    impl Background {
         fn gradient_shader_node(&self, bounds: &graphene::Rect) -> gsk::GLShaderNode {
             let Some(Some([gradient_shader, _])) = &*self.shaders.borrow() else {
                 panic!()
@@ -418,11 +418,11 @@ mod imp {
 }
 
 glib::wrapper! {
-    pub struct GradientBackground(ObjectSubclass<imp::GradientBackground>)
+    pub struct Background(ObjectSubclass<imp::Background>)
         @extends gtk::Widget;
 }
 
-impl GradientBackground {
+impl Background {
     pub fn new() -> Self {
         glib::Object::new(&[])
     }
@@ -490,7 +490,7 @@ impl GradientBackground {
     }
 }
 
-impl Default for GradientBackground {
+impl Default for Background {
     fn default() -> Self {
         Self::new()
     }
