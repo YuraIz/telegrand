@@ -50,6 +50,10 @@ uniform bool dark;
 uniform sampler2D u_texture1;
 uniform sampler2D u_texture2;
 
+bool approxEq(float a, float b) {
+    return abs(a - b) < 0.05;
+}
+
 void mainImage(out vec4 fragColor,
     in vec2 fragCoord,
     in vec2 resolution,
@@ -59,10 +63,17 @@ void mainImage(out vec4 fragColor,
     vec4 pattern = GskTexture(u_texture2, uv);
 
     float message_alpha = dark ? 0.9 : 0.8;
+    float event_alpha = dark ? 0.8 : 0.2;
 
     // We don't need to draw pattern under semi-transparent messages
     // But we need to draw it under antialized corners
-    if ((abs(messages.a - message_alpha) > 0.004) && messages.a != 1.0) {
+    if (
+        approxEq(messages.a, message_alpha) ||
+        approxEq(messages.a, event_alpha) ||
+        messages.a == 1.0
+    ) {
+        fragColor = messages;
+    } else {
         vec4 pattern_color;
 
         if (dark) {
@@ -75,8 +86,6 @@ void mainImage(out vec4 fragColor,
 
         // blend colors with premultiplied alpha
         fragColor = messages + pattern_color * (1.0 - messages.a);
-    } else {
-        fragColor = messages;
     }
 }
 "#
