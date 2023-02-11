@@ -8,11 +8,13 @@
           <object class="GtkOverlay">
             <child>
               <object class="AdwHeaderBar">
-                <property name="show-start-title-buttons" bind-source="ContentChatHistory" bind-property="compact" bind-flags="sync-create"/>
+                <property name="show-start-title-buttons" bind-source="ContentChatHistory"
+                  bind-property="compact" bind-flags="sync-create"/>
                 <child type="start">
                   <object class="GtkButton">
-                <property name="visible" bind-source="ContentChatHistory" bind-property="compact" bind-flags="sync-create"/>
-                <property name="icon-name">go-previous-symbolic</property>
+                    <property name="visible" bind-source="ContentChatHistory"
+                      bind-property="compact" bind-flags="sync-create"/>
+                    <property name="icon-name">go-previous-symbolic</property>
                     <property name="action-name">content.go-back</property>
                   </object>
                 </child>
@@ -39,7 +41,8 @@
             <child type="overlay">
               <object class="GtkRevealer">
                 <property name="transition-type">slide-up</property>
-                <property name="reveal-child" bind-source="ContentChatHistory" bind-property="sticky" bind-flags="sync-create|invert-boolean"/>
+                <property name="reveal-child" bind-source="ContentChatHistory"
+                  bind-property="sticky" bind-flags="sync-create|invert-boolean"/>
                 <property name="valign">end</property>
                 <property name="halign">end</property>
                 <child>
@@ -86,25 +89,25 @@
             </child>
             <child>
               <object class="ComponentsBackground" id="gradient_background">
-              <child>
-                <object class="GtkScrolledWindow" id="scrolled_window">
-                  <property name="vexpand">True</property>
-                  <property name="hscrollbar-policy">never</property>
-                  <style>
-                    <class name="view"/>
-                    <class name="chat-history"/>
-                  </style>
-                  <property name="child">
-                    <object class="AdwClampScrollable">
-                      <property name="maximum-size">800</property>
-                      <property name="tightening-threshold">600</property>
-                      <property name="vscroll-policy">natural</property>
-                      <property name="child">
-                        <object class="GtkListView" id="list_view">
-                          <property name="reversed">True</property>
-                          <property name="factory">
-                            <object class="GtkBuilderListItemFactory">
-                              <property name="bytes"><![CDATA[
+                <property name="child">
+                  <object class="GtkScrolledWindow" id="scrolled_window">
+                    <property name="vexpand">True</property>
+                    <property name="hscrollbar-policy">never</property>
+                    <style>
+                      <class name="view"/>
+                      <class name="chat-history"/>
+                    </style>
+                    <property name="child">
+                      <object class="AdwClampScrollable">
+                        <property name="maximum-size">800</property>
+                        <property name="tightening-threshold">600</property>
+                        <property name="vscroll-policy">natural</property>
+                        <property name="child">
+                          <object class="GtkListView" id="list_view">
+                            <property name="reversed">True</property>
+                            <property name="factory">
+                              <object class="GtkBuilderListItemFactory">
+                                <property name="bytes"><![CDATA[
   <?xml version="1.0" encoding="UTF-8"?>
   <interface>
     <template class="GtkListItem">
@@ -121,15 +124,15 @@
     </template>
   </interface>
                           ]]></property>
-                            </object>
-                          </property>
-                        </object>
-                      </property>
-                    </object>
-                  </property>
-                </object>
-              </child>
-             </object>
+                              </object>
+                            </property>
+                          </object>
+                        </property>
+                      </object>
+                    </property>
+                  </object>
+                </property>
+              </object>
             </child>
           </object>
         </child>

@@ -1,5 +1,5 @@
 use adw::prelude::*;
-use gtk::subclass::prelude::*;
+use adw::subclass::prelude::*;
 use gtk::{gdk, glib, graphene, gsk};
 use std::cell::{Cell, RefCell};
 
@@ -122,7 +122,7 @@ mod imp {
     impl ObjectSubclass for Background {
         const NAME: &'static str = "ComponentsBackground";
         type Type = super::Background;
-        type ParentType = gtk::Widget;
+        type ParentType = adw::Bin;
     }
 
     impl ObjectImpl for Background {
@@ -182,27 +182,13 @@ mod imp {
     }
 
     impl WidgetImpl for Background {
-        fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
-            if let Some(child) = self.obj().first_child() {
-                child.measure(orientation, for_size)
-            } else {
-                self.parent_measure(orientation, for_size)
-            }
-        }
-
-        fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
-            if let Some(child) = self.obj().first_child() {
-                child.allocate(width, height, baseline, None)
-            }
-        }
-
         fn snapshot(&self, snapshot: &gtk::Snapshot) {
             let widget = self.obj();
             widget.ensure_shader();
 
             let Some(Some([_, pattern_shader])) = &*self.shaders.borrow() else {
                 // fallback code
-                if let Some(child) = widget.first_child() {
+                if let Some(child) = widget.child() {
                     widget.snapshot_child(&child, snapshot);
                 }
                 return;
@@ -251,7 +237,7 @@ mod imp {
 
             snapshot.push_gl_shader(pattern_shader, &bounds, &args_builder.to_args());
 
-            if let Some(child) = widget.first_child() {
+            if let Some(child) = widget.child() {
                 widget.snapshot_child(&child, snapshot);
             }
             snapshot.gl_shader_pop_texture();
@@ -273,6 +259,8 @@ mod imp {
             snapshot.pop();
         }
     }
+
+    impl BinImpl for Background {}
 
     impl Background {
         fn gradient_shader_node(&self, bounds: &graphene::Rect) -> gsk::GLShaderNode {
@@ -355,7 +343,7 @@ mod imp {
 
 glib::wrapper! {
     pub struct Background(ObjectSubclass<imp::Background>)
-        @extends gtk::Widget;
+        @extends gtk::Widget, adw::Bin;
 }
 
 impl Background {
@@ -392,7 +380,7 @@ impl Background {
             let shaders = shaders.try_into().ok();
 
             if shaders.is_none() {
-                if let Some(c) = self.first_child() {
+                if let Some(c) = self.child() {
                     c.add_css_class("fallback")
                 }
             }
