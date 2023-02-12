@@ -7,6 +7,7 @@ mod item_row;
 mod message_row;
 mod send_photo_dialog;
 
+use self::background::Background;
 use self::chat_action_bar::ChatActionBar;
 use self::chat_history::ChatHistory;
 use self::chat_info_window::ChatInfoWindow;

@@ -1,6 +1,6 @@
 use adw::prelude::*;
 use adw::subclass::prelude::*;
-use gtk::{gdk, glib, graphene, gsk};
+use gtk::{gdk, gio, glib, graphene, gsk};
 use std::cell::{Cell, RefCell};
 
 const GRADIENT_SHADER: &[u8] = r#"
@@ -93,25 +93,18 @@ void mainImage(out vec4 fragColor,
 
 mod imp {
     use super::*;
-    use gtk::glib::once_cell::sync::{Lazy, OnceCell};
-    use gtk::glib::subclass::Signal;
-    use gtk::glib::{self, clone};
-
-    #[derive(PartialEq, Clone, Copy)]
-    struct GradientCacheParams {
-        size: (f32, f32),
-        colors: [graphene::Vec3; 4],
-        phase: u32,
-    }
+    use glib::clone;
+    use glib::once_cell::unsync::OnceCell;
 
     #[derive(Default)]
     pub struct Background {
-        pub(super) gradient_cache: RefCell<Option<gdk::Texture>>,
+        pub(super) gradient_texture: RefCell<Option<gdk::Texture>>,
         pub(super) last_size: Cell<(f32, f32)>,
 
         pub(super) shaders: RefCell<Option<Option<[gsk::GLShader; 2]>>>,
         pub(super) pattern: OnceCell<gdk::Texture>,
 
+        pub(super) animation: OnceCell<adw::Animation>,
         pub(super) progress: Cell<f32>,
         pub(super) phase: Cell<u32>,
 
@@ -120,7 +113,7 @@ mod imp {
 
     #[glib::object_subclass]
     impl ObjectSubclass for Background {
-        const NAME: &'static str = "ComponentsBackground";
+        const NAME: &'static str = "ContentBackground";
         type Type = super::Background;
         type ParentType = adw::Bin;
     }
@@ -130,9 +123,6 @@ mod imp {
             self.parent_constructed();
 
             let obj = self.obj();
-
-            obj.set_vexpand(true);
-            obj.set_hexpand(true);
 
             let pattern =
                 gdk::Texture::from_resource("/com/github/melix99/telegrand/images/pattern.svg");
@@ -145,12 +135,12 @@ mod imp {
             style_manager.connect_dark_notify(clone!(@weak obj => move |style_manager| {
                 let imp = obj.imp();
                 imp.dark.set(style_manager.is_dark());
-                imp.gradient_cache.take();
+                imp.gradient_texture.take();
             }));
 
             let target = adw::CallbackAnimationTarget::new(clone!(@weak obj => move |progress| {
                 let imp = obj.imp();
-                imp.gradient_cache.take();
+                imp.gradient_texture.take();
                 let progress = progress as f32;
                 if progress >= 1.0 {
                     imp.progress.set(0.0);
@@ -163,21 +153,7 @@ mod imp {
 
             let animation = adw::TimedAnimation::new(obj.as_ref(), 0.0, 1.0, 200, &target);
             animation.set_easing(adw::Easing::EaseInOutQuad);
-
-            obj.connect_local("animate", true, move |_| {
-                let val = animation.value();
-                if val == 0.0 || val == 1.0 {
-                    animation.play()
-                }
-                None
-            });
-        }
-
-        fn signals() -> &'static [Signal] {
-            static SIGNALS: Lazy<Vec<Signal>> =
-                Lazy::new(|| vec![Signal::builder("animate").return_type::<()>().build()]);
-
-            SIGNALS.as_ref()
+            self.animation.set(animation.upcast()).unwrap();
         }
     }
 
@@ -186,7 +162,7 @@ mod imp {
             let widget = self.obj();
             widget.ensure_shader();
 
-            let Some(Some([_, pattern_shader])) = &*self.shaders.borrow() else {
+            if let Some(None) = &*self.shaders.borrow() {
                 // fallback code
                 if let Some(child) = widget.child() {
                     widget.snapshot_child(&child, snapshot);
@@ -203,11 +179,26 @@ mod imp {
 
             let bounds = graphene::Rect::new(0.0, 0.0, width, height);
 
-            // background
+            let size_changed = self.last_size.replace((width, height)) != (width, height);
+
+            self.snapshot_gradient(snapshot, &bounds, size_changed);
+
+            self.snapshot_pattern(snapshot, &bounds);
+        }
+    }
+
+    impl BinImpl for Background {}
+
+    impl Background {
+        fn snapshot_gradient(
+            &self,
+            snapshot: &gtk::Snapshot,
+            bounds: &graphene::Rect,
+            size_changed: bool,
+        ) {
             if self.progress.get() == 0.0 {
                 let texture = {
-                    let size_changed = self.last_size.replace((width, height)) != (width, height);
-                    let cache = self.gradient_cache.borrow();
+                    let cache = self.gradient_texture.borrow();
 
                     match &*cache {
                         Some(texture) if !size_changed => texture.clone(),
@@ -216,26 +207,30 @@ mod imp {
 
                             let renderer = self.obj().native().unwrap().renderer();
                             let texture = renderer
-                                .render_texture(self.gradient_shader_node(&bounds), Some(&bounds));
+                                .render_texture(self.gradient_shader_node(bounds), Some(bounds));
 
-                            self.gradient_cache.replace(Some(texture.clone()));
+                            self.gradient_texture.replace(Some(texture.clone()));
 
                             texture
                         }
                     }
                 };
 
-                snapshot.append_texture(&texture, &bounds);
+                snapshot.append_texture(&texture, bounds);
             } else {
-                snapshot.append_node(self.gradient_shader_node(&bounds));
+                snapshot.append_node(self.gradient_shader_node(bounds));
             }
+        }
 
-            // pattern
+        fn snapshot_pattern(&self, snapshot: &gtk::Snapshot, bounds: &graphene::Rect) {
+            let widget = self.obj();
+            let Some(Some([_, pattern_shader])) = &*self.shaders.borrow() else {unreachable!()};
+
             let args_builder = gsk::ShaderArgsBuilder::new(pattern_shader, None);
 
             args_builder.set_bool(0, self.dark.get());
 
-            snapshot.push_gl_shader(pattern_shader, &bounds, &args_builder.to_args());
+            snapshot.push_gl_shader(pattern_shader, bounds, &args_builder.to_args());
 
             if let Some(child) = widget.child() {
                 widget.snapshot_child(&child, snapshot);
@@ -251,18 +246,14 @@ mod imp {
                 pattern.height() as f32 * 0.3,
             );
 
-            snapshot.push_repeat(&bounds, Some(&pattern_bounds));
+            snapshot.push_repeat(bounds, Some(&pattern_bounds));
             snapshot.append_texture(pattern, &pattern_bounds);
             snapshot.pop();
             snapshot.gl_shader_pop_texture();
 
             snapshot.pop();
         }
-    }
 
-    impl BinImpl for Background {}
-
-    impl Background {
         fn gradient_shader_node(&self, bounds: &graphene::Rect) -> gsk::GLShaderNode {
             let Some(Some([gradient_shader, _])) = &*self.shaders.borrow() else {
                 unreachable!()
@@ -352,7 +343,12 @@ impl Background {
     }
 
     pub fn animate(&self) {
-        self.emit_by_name::<()>("animate", &[]);
+        let animation = self.imp().animation.get().unwrap();
+
+        let val = animation.value();
+        if val == 0.0 || val == 1.0 {
+            animation.play()
+        }
     }
 
     fn ensure_shader(&self) {
@@ -365,10 +361,9 @@ impl Background {
             let shaders: Vec<_> = sources
                 .iter()
                 .flat_map(|source| {
-                    // let bytes = glib::Bytes::from_static(source);
                     let shader = gsk::GLShader::from_bytes(&source.into());
                     if let Err(e) = shader.compile(&renderer) {
-                        if e.message() != "The renderer does not support gl shaders" {
+                        if !e.matches(gio::IOErrorEnum::NotSupported) {
                             log::error!("can't compile shader for gradient background {e}");
                         }
                         return None;
