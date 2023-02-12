@@ -6,9 +6,8 @@ use gtk::{gio, glib, CompositeTemplate};
 use tdlib::enums::ChatMemberStatus;
 use tdlib::functions;
 
-use super::background::Background;
 use crate::session::content::{
-    ChatActionBar, ChatHistoryError, ChatHistoryModel, ChatHistoryRow, ChatInfoWindow,
+    Background, ChatActionBar, ChatHistoryError, ChatHistoryModel, ChatHistoryRow, ChatInfoWindow,
 };
 use crate::tdlib::{Chat, ChatType, SponsoredMessage};
 use crate::utils::spawn;
