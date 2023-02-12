@@ -1,4 +1,5 @@
 use adw::prelude::*;
+use glib::clone;
 use gtk::subclass::prelude::*;
 use gtk::{glib, CompositeTemplate};
 use std::collections::hash_map::DefaultHasher;
@@ -211,7 +212,27 @@ impl MessageBubble {
 
             self.update_sender_color(maybe_id);
 
-            imp.sender_label.set_visible(true);
+            use crate::tdlib::MessageStyle::*;
+
+            message.connect_notify_local(
+                Some("style"),
+                clone!(@weak self as obj  => move |msg, _| {
+                    let style = msg.style();
+                    let show_label = match style {
+                        Single | Start => true,
+                        End | Center => false,
+                    };
+
+                    obj.imp().sender_label.set_visible(show_label);
+                }),
+            );
+
+            let show_label = match message.style() {
+                Single | Start => true,
+                End | Center => false,
+            };
+
+            imp.sender_label.set_visible(show_label);
         } else {
             if let Some(old_class) = imp.sender_color_class.take() {
                 imp.sender_label.remove_css_class(&old_class);

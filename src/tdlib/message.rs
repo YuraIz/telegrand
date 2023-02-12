@@ -11,6 +11,16 @@ use crate::tdlib::{
 };
 use crate::{expressions, Session};
 
+#[derive(Default, Debug, Clone, Copy, glib::Enum)]
+#[enum_type(name = "MessageStyle")]
+pub(crate) enum MessageStyle {
+    #[default]
+    Single, // Show both avatar and sender name
+    Start,  // Hide avatar, show sender name
+    Center, // Hide both avatar and sender name
+    End,    // Show avatar, hide sender name
+}
+
 #[derive(Clone, Debug, glib::Boxed)]
 #[boxed_type(name = "MessageSender")]
 pub(crate) enum MessageSender {
@@ -67,6 +77,7 @@ mod imp {
         pub(super) is_edited: Cell<bool>,
         pub(super) chat: WeakRef<Chat>,
         pub(super) forward_info: OnceCell<Option<MessageForwardInfo>>,
+        pub(super) style: Cell<MessageStyle>,
     }
 
     #[glib::object_subclass]
@@ -111,6 +122,7 @@ mod imp {
                     glib::ParamSpecObject::builder::<MessageForwardInfo>("forward-info")
                         .read_only()
                         .build(),
+                    glib::ParamSpecEnum::builder("style", MessageStyle::default()).build(),
                 ]
             });
             PROPERTIES.as_ref()
@@ -132,7 +144,16 @@ mod imp {
                 "is-edited" => obj.is_edited().to_value(),
                 "chat" => obj.chat().to_value(),
                 "forward-info" => obj.forward_info().to_value(),
+                "style" => obj.style().to_value(),
                 _ => unimplemented!(),
+            }
+        }
+
+        fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
+            if pspec.name() == "style" {
+                self.style.set(value.get().unwrap());
+            } else {
+                unimplemented!()
             }
         }
     }
@@ -263,6 +284,15 @@ impl Message {
 
     pub(crate) fn forward_info(&self) -> Option<&MessageForwardInfo> {
         self.imp().forward_info.get().unwrap().as_ref()
+    }
+
+    pub(crate) fn style(&self) -> MessageStyle {
+        self.imp().style.get()
+    }
+
+    pub(crate) fn set_style(&self, style: MessageStyle) {
+        self.imp().style.set(style);
+        self.notify("style");
     }
 
     pub(crate) fn sender_name_expression(&self) -> gtk::Expression {

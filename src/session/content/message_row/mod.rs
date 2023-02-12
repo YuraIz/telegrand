@@ -244,6 +244,33 @@ impl MessageRow {
                     }
                 };
 
+                use crate::tdlib::MessageStyle::*;
+
+                let show_avatar = match message.style() {
+                    Single | End => true,
+                    Start | Center => false,
+                };
+
+                avatar.set_visible(show_avatar);
+
+                let margin_start = if show_avatar { 0 } else { 38 };
+                self.set_margin_start(margin_start);
+
+                message.connect_notify_local(
+                    Some("style"),
+                    clone!(@weak avatar, @weak self as obj  => move |msg, _| {
+                        let style = msg.style();
+                        let show_avatar = match style {
+                            Single | End => true,
+                            Start | Center => false,
+                        };
+                        avatar.set_visible(show_avatar);
+
+                        let margin_start = if show_avatar {0} else {38};
+                        obj.set_margin_start(margin_start);
+                    }),
+                );
+
                 if message.chat().is_own_chat() {
                     match message.forward_info().unwrap().origin() {
                         MessageForwardOrigin::User(user) => {

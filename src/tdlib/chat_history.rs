@@ -183,6 +183,83 @@ impl ChatHistory {
             };
             let mut dividers: Vec<(usize, ChatHistoryItem)> = vec![];
 
+            // Simple message grouping
+            {
+                let messages = {
+                    let center = list.range(position..position + added).map(|m| Some(m));
+
+                    let mut messages = vec![
+                        list.get(position.wrapping_sub(2)),
+                        list.get(position.wrapping_sub(1)),
+                    ];
+
+                    messages.append(&mut center.collect());
+
+                    messages.push(list.get(position + added + 1));
+                    messages.push(list.get(position + added + 2));
+
+                    let messages: Vec<_> = messages
+                        .iter()
+                        .filter_map(|a| a.and_then(|a| a.message()))
+                        .collect();
+                    messages
+                };
+
+                if list.len() >= 2 {
+                    // first message
+                    let mut iter = list.iter().rev().filter_map(|a| a.message()).take(2);
+
+                    let first = iter.next().unwrap();
+                    let next_id = iter.next().unwrap().sender().id();
+
+                    use crate::tdlib::MessageStyle::*;
+
+                    let style = if next_id == first.sender().id() {
+                        Start
+                    } else {
+                        Single
+                    };
+                    first.set_style(style);
+
+                    // last message
+                    let mut iter = list.iter().filter_map(|a| a.message()).take(2);
+
+                    let last = iter.next().unwrap();
+                    let prev_id = iter.next().unwrap().sender().id();
+
+                    let style = if prev_id == last.sender().id() {
+                        End
+                    } else {
+                        Single
+                    };
+                    last.set_style(style);
+                }
+
+                for (next, (curr, prev)) in messages
+                    .iter()
+                    .zip(messages.iter().skip(1).zip(messages.iter().skip(2)))
+                {
+                    let id = curr.sender().id();
+                    let p_id = prev.sender().id();
+                    let n_id = next.sender().id();
+
+                    let hide_label = p_id == id;
+
+                    let hide_avatar = n_id == id;
+
+                    use crate::tdlib::MessageStyle::*;
+
+                    let style = match (hide_label, hide_avatar) {
+                        (true, true) => Center,
+                        (false, true) => Start,
+                        (true, false) => End,
+                        (false, false) => Single,
+                    };
+
+                    curr.set_style(style);
+                }
+            }
+
             for (index, current) in list.range(position..position + added).enumerate().rev() {
                 if let Some(current_timestamp) = current.message_timestamp() {
                     if Some(current_timestamp.ymd()) != previous_timestamp.as_ref().map(|t| t.ymd())
