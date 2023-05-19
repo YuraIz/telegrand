@@ -2,7 +2,9 @@
 <interface>
   <template class="ContentChatHistory" parent="AdwBin">
     <child>
-      <object class="AdwToolbarView">
+      <object class="AdwToolbarView" id="toolbarview">
+        <property name="extend-content-to-top-edge">True</property>
+        <property name="extend-content-to-bottom-edge">True</property>
         <child type="top">
           <object class="GtkOverlay">
             <child>
@@ -46,6 +48,10 @@
                 <property name="halign">end</property>
                 <child>
                   <object class="GtkOverlay">
+                    <property name="margin-top" bind-source="toolbarview"
+                      bind-property="top-bar-height"/>
+                    <property name="margin-bottom" bind-source="toolbarview"
+                      bind-property="bottom-bar-height"/>
                     <child type="overlay">
                       <object class="GtkLabel">
                         <property name="halign">center</property>
@@ -90,6 +96,10 @@
               <object class="ContentBackground" id="background">
                 <property name="vexpand">True</property>
                 <property name="hexpand">True</property>
+                <property name="top-bar-height" bind-source="toolbarview"
+                  bind-property="top-bar-height"/>
+                <property name="bottom-bar-height" bind-source="toolbarview"
+                  bind-property="bottom-bar-height"/>
                 <property name="child">
                   <object class="GtkScrolledWindow" id="scrolled_window">
                     <property name="vexpand">True</property>
@@ -101,6 +111,11 @@
                         <property name="vscroll-policy">natural</property>
                         <property name="child">
                           <object class="GtkListView" id="list_view">
+                            <property name="margin-top" bind-source="toolbarview"
+                              bind-property="top-bar-height"/>
+                            <property name="margin-bottom" bind-source="toolbarview"
+                              bind-property="bottom-bar-height"/>
+                            <property name="overflow">visible</property>
                             <property name="reversed">True</property>
                             <style>
                               <class name="chat-history"/>

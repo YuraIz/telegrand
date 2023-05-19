@@ -47,11 +47,42 @@ precision highp float;
 precision highp sampler2D;
 
 uniform bool dark;
+uniform vec2 bar_heights;
+
 uniform sampler2D u_texture1;
 uniform sampler2D u_texture2;
 
 bool approxEq(float a, float b) {
     return abs(a - b) < 0.05;
+}
+
+vec4 blur(vec2 uv, vec2 resolution )
+{
+    float Pi = 6.28318530718; // Pi*2
+
+    // GAUSSIAN BLUR SETTINGS {{{
+    float Directions = 64.0; // BLUR DIRECTIONS (Default 16.0 - More is better but slower)
+    float Quality = 16.0; // BLUR QUALITY (Default 4.0 - More is better but slower)
+    float Size = 64.0; // BLUR SIZE (Radius)
+    // GAUSSIAN BLUR SETTINGS }}}
+
+    vec2 Radius = Size/resolution;
+
+    // Pixel colour
+    vec4 Color = texture(u_texture1, uv);
+
+    // Blur calculations
+    for(float d=0.0; d<Pi; d+=Pi/Directions)
+    {
+		for(float i=1.0/Quality; i<=1.0; i+=1.0/Quality)
+        {
+			Color += texture(u_texture1, uv+vec2(cos(d),sin(d))*Radius*i);
+        }
+    }
+
+    // Output to screen
+    Color /= Quality * Directions - 15.0;
+    return Color;
 }
 
 void mainImage(out vec4 fragColor,
@@ -87,6 +118,21 @@ void mainImage(out vec4 fragColor,
         // blend colors with premultiplied alpha
         fragColor = messages + pattern_color * (1.0 - messages.a);
     }
+
+    bool apply_blur =
+        (fragCoord.y <= bar_heights.x)
+        || (fragCoord.y >= resolution.y - bar_heights.y);
+
+    if (apply_blur) {
+        vec4 blursed_messages = blur(uv, resolution);
+
+        if (dark) {
+            blursed_messages *= 0.5;
+            fragColor = blursed_messages + vec4(vec3(30.0 / 255.0), 0.95) * (1.0 - blursed_messages.a);
+        } else {
+            fragColor = mix(blursed_messages, vec4(1), 0.8);
+        }
+    }
 }
 "#
 .as_bytes();
@@ -96,7 +142,8 @@ mod imp {
     use glib::clone;
     use glib::once_cell::unsync::OnceCell;
 
-    #[derive(Default)]
+    #[derive(Default, glib::Properties)]
+    #[properties(wrapper_type = super::Background)]
     pub struct Background {
         pub(super) gradient_texture: RefCell<Option<gdk::Texture>>,
         pub(super) last_size: Cell<(f32, f32)>,
@@ -107,6 +154,17 @@ mod imp {
         pub(super) animation: OnceCell<adw::Animation>,
         pub(super) progress: Cell<f32>,
         pub(super) phase: Cell<u32>,
+
+        #[property(set = |_, val| {
+            self.top_bar_height.set(val);
+            self.obj().queue_draw();
+        })]
+        pub(super) top_bar_height: Cell<u32>,
+        #[property(set = |_, val| {
+            self.bottom_bar_height.set(val);
+            self.obj().queue_draw();
+        })]
+        pub(super) bottom_bar_height: Cell<u32>,
 
         pub(super) dark: Cell<bool>,
     }
@@ -119,13 +177,20 @@ mod imp {
     }
 
     impl ObjectImpl for Background {
+        fn properties() -> &'static [glib::ParamSpec] {
+            Self::derived_properties()
+        }
+
+        fn set_property(&self, id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
+            self.derived_set_property(id, value, pspec)
+        }
+
         fn constructed(&self) {
             self.parent_constructed();
 
             let obj = self.obj();
 
-            let pattern =
-                gdk::Texture::from_resource("/com/github/melix99/telegrand/images/pattern.svg");
+            let pattern = gdk::Texture::from_resource("/app/drey/paper-plane/images/pattern.svg");
 
             self.pattern.set(pattern).unwrap();
 
@@ -229,6 +294,13 @@ mod imp {
             let args_builder = gsk::ShaderArgsBuilder::new(pattern_shader, None);
 
             args_builder.set_bool(0, self.dark.get());
+            args_builder.set_vec2(
+                1,
+                &graphene::Vec2::new(
+                    self.top_bar_height.get() as f32,
+                    self.bottom_bar_height.get() as f32,
+                ),
+            );
 
             snapshot.push_gl_shader(pattern_shader, bounds, args_builder.to_args());
 

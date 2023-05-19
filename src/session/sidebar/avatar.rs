@@ -134,9 +134,13 @@ impl Avatar {
 
         // This should never panic as there must always be a `Sidebar` as ancestor having a
         // `Session`.
-        let session = self
-            .ancestor(Sidebar::static_type())
-            .unwrap()
+
+        let Some(sidebar) = self
+            .ancestor(Sidebar::static_type()) else {
+                return
+            };
+
+        let session = sidebar
             .downcast_ref::<Sidebar>()
             .unwrap()
             .session()
