@@ -236,7 +236,7 @@ messagebubble.document .file.with-thumbnail > overlay > picture {
   opacity: 1;
 }
 
-messagebubble.media mediapicture {
+messagebubble.media .album {
   min-width: 150px;
   min-height: 100px;
   /* Negate margins to achieve 1px padding with the message bubble */
@@ -245,7 +245,11 @@ messagebubble.media mediapicture {
   border-radius: 14px;
 }
 
-messagebubble.media.with-reply mediapicture {
+messagebubble.media .album photo {
+  border-radius: 4px;
+}
+
+messagebubble.media.with-reply .album {
   border-top-right-radius: 0;
   border-top-left-radius: 0;
   margin-top: 3px;
@@ -277,7 +281,7 @@ messagebubble.document .file.with-thumbnail:active > overlay > picture {
   filter: brightness(1.08);
 }
 
-messagebubble.media.with-label mediapicture {
+messagebubble.media.with-label .album {
   border-bottom-right-radius: 0;
   border-bottom-left-radius: 0;
   margin-bottom: 6px;

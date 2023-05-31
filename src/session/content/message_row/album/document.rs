@@ -11,10 +11,6 @@ use once_cell::sync::Lazy;
 use tdlib::enums::MessageContent;
 use tdlib::types::File;
 
-use super::base::MessageBaseExt;
-use crate::session::content::message_row::MessageBase;
-use crate::session::content::message_row::MessageBaseImpl;
-use crate::session::content::message_row::MessageBubble;
 use crate::tdlib::Message;
 use crate::utils::parse_formatted_text;
 use crate::utils::spawn;
@@ -24,16 +20,55 @@ mod imp {
     use super::*;
 
     #[derive(Debug, Default, CompositeTemplate)]
-    #[template(resource = "/app/drey/paper-plane/ui/content-message-document.ui")]
-    pub(crate) struct MessageDocument {
+    #[template(string = r#"
+    template $MessageAlbumDocument {
+        layout-manager: BoxLayout {
+            spacing: 6;
+        };
+
+        styles ["file"]
+
+        GestureClick click {
+            button: 1;
+        }
+
+        Overlay {
+            [overlay]
+            Picture file_thumbnail_picture {
+                content-fit: cover;
+                visible: false;
+            }
+
+            [overlay]
+            Image file_status_image {
+                halign: center;
+                valign: center;
+            }
+        }
+
+        Box {
+            hexpand: true;
+            valign: center;
+            orientation: vertical;
+
+            Label file_name_label {
+                xalign: 0;
+                ellipsize: middle;
+            }
+
+            Label file_size_label {
+                styles ["numeric", "dim-label", "caption"]
+
+                xalign: 0;
+            }
+        }
+    }
+    "#)]
+    pub(crate) struct MessageAlbumDocument {
         pub(super) bindings: RefCell<Vec<gtk::ExpressionWatch>>,
         pub(super) handler_id: RefCell<Option<glib::SignalHandlerId>>,
         pub(super) status_handler_id: RefCell<Option<glib::SignalHandlerId>>,
         pub(super) message: RefCell<Option<Message>>,
-        #[template_child]
-        pub(super) message_bubble: TemplateChild<MessageBubble>,
-        #[template_child]
-        pub(super) file_box: TemplateChild<gtk::Box>,
         #[template_child]
         pub(super) click: TemplateChild<gtk::GestureClick>,
         #[template_child]
@@ -47,10 +82,10 @@ mod imp {
     }
 
     #[glib::object_subclass]
-    impl ObjectSubclass for MessageDocument {
-        const NAME: &'static str = "MessageDocument";
-        type Type = super::MessageDocument;
-        type ParentType = MessageBase;
+    impl ObjectSubclass for MessageAlbumDocument {
+        const NAME: &'static str = "MessageAlbumDocument";
+        type Type = super::MessageAlbumDocument;
+        type ParentType = gtk::Widget;
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
@@ -62,7 +97,7 @@ mod imp {
         }
     }
 
-    impl ObjectImpl for MessageDocument {
+    impl ObjectImpl for MessageAlbumDocument {
         fn properties() -> &'static [glib::ParamSpec] {
             static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
                 vec![glib::ParamSpecObject::builder::<glib::Object>("message")
@@ -89,43 +124,12 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for MessageDocument {}
-    impl MessageBaseImpl for MessageDocument {}
+    impl WidgetImpl for MessageAlbumDocument {}
 }
 
 glib::wrapper! {
-    pub(crate) struct MessageDocument(ObjectSubclass<imp::MessageDocument>)
-        @extends gtk::Widget, MessageBase;
-}
-
-impl MessageBaseExt for MessageDocument {
-    type Message = Message;
-
-    fn set_message(&self, message: Self::Message) {
-        let imp = self.imp();
-
-        if imp.message.borrow().as_ref() == Some(&message) {
-            return;
-        }
-
-        let mut bindings = imp.bindings.borrow_mut();
-
-        while let Some(binding) = bindings.pop() {
-            binding.unwatch();
-        }
-
-        imp.message_bubble.update_from_message(&message, false);
-
-        let handler_id =
-            message.connect_content_notify(clone!(@weak self as obj => move |message, _| {
-                obj.update_document(message);
-            }));
-        imp.handler_id.replace(Some(handler_id));
-        self.update_document(&message);
-
-        imp.message.replace(Some(message));
-        self.notify("message");
-    }
+    pub(crate) struct MessageAlbumDocument(ObjectSubclass<imp::MessageAlbumDocument>)
+        @extends gtk::Widget;
 }
 
 #[derive(PartialEq)]
@@ -161,13 +165,38 @@ impl From<&File> for FileStatus {
     }
 }
 
-impl MessageDocument {
+impl MessageAlbumDocument {
+    pub(crate) fn new() -> Self {
+        glib::Object::new()
+    }
+
+    pub(crate) fn set_message(&self, message: Message) {
+        let imp = self.imp();
+
+        if imp.message.borrow().as_ref() == Some(&message) {
+            return;
+        }
+
+        let mut bindings = imp.bindings.borrow_mut();
+
+        while let Some(binding) = bindings.pop() {
+            binding.unwatch();
+        }
+
+        let handler_id =
+            message.connect_content_notify(clone!(@weak self as obj => move |message, _| {
+                obj.update_document(message);
+            }));
+        imp.handler_id.replace(Some(handler_id));
+        self.update_document(&message);
+
+        imp.message.replace(Some(message));
+        self.notify("message");
+    }
+
     fn update_document(&self, message: &Message) {
         if let MessageContent::MessageDocument(data) = message.content().0 {
             let imp = self.imp();
-
-            let message_text = parse_formatted_text(data.caption);
-            imp.message_bubble.set_label(message_text);
 
             imp.file_name_label.set_label(&data.document.file_name);
 
@@ -263,7 +292,7 @@ impl MessageDocument {
             let imp = self.imp();
             if let Some(thumbnail) = data.document.thumbnail {
                 imp.file_thumbnail_picture.set_visible(true);
-                imp.file_box.add_css_class("with-thumbnail");
+                self.add_css_class("with-thumbnail");
                 if thumbnail.file.local.is_downloading_completed {
                     imp.file_thumbnail_picture
                         .set_filename(Some(&thumbnail.file.local.path));

@@ -11,6 +11,7 @@ use crate::tdlib::Message;
 #[boxed_type(name = "ContentChatHistoryItemType")]
 pub(crate) enum ChatHistoryItemType {
     Message(Message),
+    MediaGroup(Vec<Message>),
     DayDivider(DateTime),
 }
 
@@ -61,6 +62,11 @@ impl ChatHistoryItem {
         glib::Object::builder().property("type", type_).build()
     }
 
+    pub(crate) fn for_media_group(media_group: Vec<Message>) -> Self {
+        let type_ = ChatHistoryItemType::MediaGroup(media_group);
+        glib::Object::builder().property("type", type_).build()
+    }
+
     pub(crate) fn for_day_divider(day: DateTime) -> Self {
         let type_ = ChatHistoryItemType::DayDivider(day);
         glib::Object::builder().property("type", type_).build()
@@ -78,15 +84,25 @@ impl ChatHistoryItem {
         }
     }
 
-    pub(crate) fn message_timestamp(&self) -> Option<DateTime> {
-        if let ChatHistoryItemType::Message(message) = self.type_() {
-            Some(
-                glib::DateTime::from_unix_utc(message.date().into())
-                    .and_then(|t| t.to_local())
-                    .unwrap(),
-            )
+    pub(crate) fn media_group(&self) -> Option<&[Message]> {
+        if let ChatHistoryItemType::MediaGroup(media_group) = self.type_() {
+            Some(media_group)
         } else {
             None
         }
+    }
+
+    pub(crate) fn message_timestamp(&self) -> Option<DateTime> {
+        let date = match self.type_() {
+            ChatHistoryItemType::Message(message) => message.date(),
+            ChatHistoryItemType::MediaGroup(media_group) => media_group.first()?.date(),
+            _ => return None,
+        };
+
+        Some(
+            glib::DateTime::from_unix_utc(date.into())
+                .and_then(|t| t.to_local())
+                .unwrap(),
+        )
     }
 }

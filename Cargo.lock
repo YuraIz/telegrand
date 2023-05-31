@@ -18,6 +18,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "android-tzdata"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e999941b234f3131b00bc13c22d06e8c5ff726d1b6318ac7eb276997bbb4fef0"
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -153,12 +159,12 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chrono"
-version = "0.4.24"
+version = "0.4.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e3c5919066adf22df73762e50cffcde3a758f2a848b113b586d1f86728b673b"
+checksum = "ec837a71355b28f6556dbd569b37b3f363091c0bd4b2e735674521b4c5fd9bc5"
 dependencies = [
+ "android-tzdata",
  "iana-time-zone",
- "num-integer",
  "num-traits",
  "serde",
  "winapi",
@@ -230,6 +236,12 @@ dependencies = [
  "quote",
  "syn 2.0.18",
 ]
+
+[[package]]
+name = "either"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 
 [[package]]
 name = "ellipse"
@@ -811,6 +823,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -845,8 +866,9 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "libadwaita"
-version = "0.3.1"
-source = "git+https://gitlab.gnome.org/World/Rust/libadwaita-rs?branch=v0.3-adaptive-states-and-more#e6ec4f54f96362877175866ea864c8a5ecf31b5f"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e82776542b73ac5691b2bddf3e2aaf0157d34f35193fb522de2fc258006c1785"
 dependencies = [
  "bitflags",
  "futures-channel",
@@ -863,8 +885,9 @@ dependencies = [
 
 [[package]]
 name = "libadwaita-sys"
-version = "0.3.0"
-source = "git+https://gitlab.gnome.org/World/Rust/libadwaita-rs?branch=v0.3-adaptive-states-and-more#e6ec4f54f96362877175866ea864c8a5ecf31b5f"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91be74a61f26efa6946c02dad76eb4cd3021addb0ff85dde445c1cd41d2eca2d"
 dependencies = [
  "gdk4-sys",
  "gio-sys",
@@ -1028,9 +1051,19 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.17.1"
+version = "1.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
+checksum = "9670a07f94779e00908f3e686eab508878ebb390ba6e604d3a284c00e8d0487b"
+
+[[package]]
+name = "origami"
+version = "0.1.0"
+source = "git+https://github.com/yuraiz/origami?branch=grouped_layout#121b848c42a8232f2a43fadfb99ee1bec041ed36"
+dependencies = [
+ "gtk4",
+ "libadwaita",
+ "log",
+]
 
 [[package]]
 name = "pango"
@@ -1070,10 +1103,12 @@ dependencies = [
  "gtk4",
  "image",
  "indexmap",
+ "itertools",
  "libadwaita",
  "locale_config",
  "log",
  "once_cell",
+ "origami",
  "pretty_env_logger",
  "qrcode-generator",
  "regex",

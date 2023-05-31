@@ -1,10 +1,9 @@
+mod album;
 mod base;
 mod bubble;
-mod document;
 mod indicators;
 mod label;
 mod media_picture;
-mod photo;
 mod reply;
 mod sticker;
 mod text;
@@ -23,15 +22,14 @@ use once_cell::sync::Lazy;
 use tdlib::enums::MessageContent;
 use tdlib::enums::StickerFormat;
 
+use self::album::MessageAlbum;
 use self::base::MessageBase;
 use self::base::MessageBaseExt;
 use self::base::MessageBaseImpl;
 use self::bubble::MessageBubble;
-use self::document::MessageDocument;
 use self::indicators::MessageIndicators;
 use self::label::MessageLabel;
 use self::media_picture::MediaPicture;
-use self::photo::MessagePhoto;
 use self::reply::MessageReply;
 use self::sticker::MessageSticker;
 use self::text::MessageText;
@@ -132,7 +130,9 @@ mod imp {
         }
     }
 
-    impl WidgetImpl for MessageRow {}
+    impl WidgetImpl for MessageRow {
+        // fn me
+    }
 }
 
 glib::wrapper! {
@@ -148,6 +148,15 @@ impl MessageRow {
             .property("layout-manager", layout_manager)
             .property("message", message)
             .build()
+    }
+
+    pub(crate) fn for_album(album: Vec<Message>) -> Self {
+        let layout_manager = gtk::BoxLayout::builder().spacing(SPACING).build();
+        let obj: Self = glib::Object::builder()
+            .property("layout-manager", layout_manager)
+            .build();
+        obj.set_media_group(album);
+        obj
     }
 
     #[template_callback]
@@ -218,67 +227,7 @@ impl MessageRow {
         }
 
         if let Some(message) = message.downcast_ref::<Message>() {
-            let show_avatar = if message.is_outgoing() {
-                false
-            } else if message.chat().is_own_chat() {
-                message.forward_info().is_some()
-            } else {
-                match message.chat().type_() {
-                    ChatType::BasicGroup(_) => true,
-                    ChatType::Supergroup(supergroup) => !supergroup.is_channel(),
-                    _ => false,
-                }
-            };
-
-            if show_avatar {
-                let avatar = {
-                    let mut avatar_borrow = imp.avatar.borrow_mut();
-                    if let Some(avatar) = avatar_borrow.clone() {
-                        avatar
-                    } else {
-                        let avatar = Avatar::new();
-                        avatar.set_size(AVATAR_SIZE);
-                        avatar.set_valign(gtk::Align::End);
-
-                        // Insert at the beginning
-                        avatar.insert_after(self, gtk::Widget::NONE);
-
-                        *avatar_borrow = Some(avatar.clone());
-                        avatar
-                    }
-                };
-
-                if message.chat().is_own_chat() {
-                    match message.forward_info().unwrap().origin() {
-                        MessageForwardOrigin::User(user) => {
-                            avatar.set_custom_text(None);
-                            avatar.set_item(Some(user.clone().upcast()));
-                        }
-                        MessageForwardOrigin::Chat { chat, .. }
-                        | MessageForwardOrigin::Channel { chat, .. } => {
-                            avatar.set_custom_text(None);
-                            avatar.set_item(Some(chat.clone().upcast()));
-                        }
-                        MessageForwardOrigin::HiddenUser { sender_name }
-                        | MessageForwardOrigin::MessageImport { sender_name } => {
-                            avatar.set_item(None);
-                            avatar.set_custom_text(Some(sender_name));
-                        }
-                    }
-                } else {
-                    let avatar_item = match message.sender() {
-                        MessageSender::User(user) => user.clone().upcast(),
-                        MessageSender::Chat(chat) => chat.clone().upcast(),
-                    };
-                    avatar.set_custom_text(None);
-                    avatar.set_item(Some(avatar_item));
-                }
-            } else {
-                if let Some(avatar) = imp.avatar.borrow().as_ref() {
-                    avatar.unparent();
-                }
-                imp.avatar.replace(None);
-            }
+            self.update_style(message);
         }
 
         self.update_content(message.clone());
@@ -289,6 +238,115 @@ impl MessageRow {
         self.update_actions();
 
         self.notify("message");
+    }
+
+    pub(crate) fn set_media_group(&self, media_group: Vec<Message>) {
+        // TODO: Compare all messages in group, not only one
+
+        let Some(first_message) = media_group.first() else {return};
+
+        let imp = self.imp();
+
+        if imp.message.borrow().as_ref() == Some(first_message.upcast_ref()) {
+            return;
+        }
+
+        self.update_style(first_message);
+
+        let is_outgoing = match first_message.chat().type_() {
+            ChatType::Supergroup(data) if data.is_channel() => false,
+            _ => first_message.is_outgoing(),
+        };
+
+        dbg!(&media_group);
+
+        let mut val_array = glib::ValueArray::new(media_group.len() as u32);
+
+        for (i, message) in media_group.iter().enumerate() {
+            val_array.insert(i as u32, &message.into());
+        }
+
+        self.update_specific_content::<_, MessageAlbum>(val_array);
+
+        if let Some(content) = &*self.imp().content.borrow() {
+            if is_outgoing {
+                content.set_halign(gtk::Align::End);
+            } else {
+                content.set_halign(gtk::Align::Start);
+            }
+        }
+
+        imp.message.replace(Some(first_message.clone().upcast()));
+
+        self.update_actions();
+
+        self.notify("message");
+    }
+
+    fn update_style(&self, message: &Message) {
+        let imp = self.imp();
+
+        let show_avatar = if message.is_outgoing() {
+            false
+        } else if message.chat().is_own_chat() {
+            message.forward_info().is_some()
+        } else {
+            match message.chat().type_() {
+                ChatType::BasicGroup(_) => true,
+                ChatType::Supergroup(supergroup) => !supergroup.is_channel(),
+                _ => false,
+            }
+        };
+
+        if show_avatar {
+            let avatar = {
+                let mut avatar_borrow = imp.avatar.borrow_mut();
+                if let Some(avatar) = avatar_borrow.clone() {
+                    avatar
+                } else {
+                    let avatar = Avatar::new();
+                    avatar.set_size(AVATAR_SIZE);
+                    avatar.set_valign(gtk::Align::End);
+
+                    // Insert at the beginning
+                    avatar.insert_after(self, gtk::Widget::NONE);
+
+                    *avatar_borrow = Some(avatar.clone());
+                    avatar
+                }
+            };
+
+            if message.chat().is_own_chat() {
+                match message.forward_info().unwrap().origin() {
+                    MessageForwardOrigin::User(user) => {
+                        avatar.set_custom_text(None);
+                        avatar.set_item(Some(user.clone().upcast()));
+                    }
+                    MessageForwardOrigin::Chat { chat, .. }
+                    | MessageForwardOrigin::Channel { chat, .. } => {
+                        avatar.set_custom_text(None);
+                        avatar.set_item(Some(chat.clone().upcast()));
+                    }
+                    MessageForwardOrigin::HiddenUser { sender_name }
+                    | MessageForwardOrigin::MessageImport { sender_name } => {
+                        avatar.set_item(None);
+                        avatar.set_custom_text(Some(sender_name));
+                    }
+                }
+            } else {
+                let avatar_item = match message.sender() {
+                    MessageSender::User(user) => user.clone().upcast(),
+                    MessageSender::Chat(chat) => chat.clone().upcast(),
+                };
+                avatar.set_custom_text(None);
+                avatar.set_item(Some(avatar_item));
+            }
+        } else {
+            if let Some(avatar) = imp.avatar.borrow().as_ref() {
+                avatar.unparent();
+            }
+            imp.avatar.replace(None);
+        }
     }
 
     fn can_reply_to_message(&self) -> bool {
@@ -346,16 +404,16 @@ impl MessageRow {
                     ).unwrap_or_default() => {
                     self.update_specific_content::<_, MessageSticker>(message_.clone());
                 }
-                MessageContent::MessagePhoto(_) => {
-                    self.update_specific_content::<_, MessagePhoto>(message_.clone());
+                MessageContent::MessagePhoto(_) | MessageContent::MessageDocument(_) => {
+                    let mut message_album = glib::ValueArray::new(1);
+                    message_album.insert(0, &message_.into());
+
+                    self.update_specific_content::<_, MessageAlbum>(message_album);
                 }
                 MessageContent::MessageSticker(data)
                     if matches!(data.sticker.format, StickerFormat::Webp | StickerFormat::Tgs) =>
                 {
                     self.update_specific_content::<_, MessageSticker>(message_.clone());
-                }
-                MessageContent::MessageDocument(_) => {
-                    self.update_specific_content::<_, MessageDocument>(message_.clone());
                 }
                 _ => {
                     self.update_specific_content::<_, MessageText>(message);

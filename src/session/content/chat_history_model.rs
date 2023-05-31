@@ -9,6 +9,7 @@ use gtk::gio;
 use gtk::glib;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+use itertools::*;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
@@ -248,17 +249,28 @@ impl ChatHistoryModel {
 
     fn append(&self, messages: Vec<Message>) {
         let imp = self.imp();
-        let added = messages.len();
+        // let added = messages.len();
 
-        imp.list.borrow_mut().reserve(added);
+        // todo: That reserves too many space
+        imp.list.borrow_mut().reserve(messages.len());
 
-        for message in messages {
-            imp.list
-                .borrow_mut()
-                .push_back(ChatHistoryItem::for_message(message));
+        let index = imp.list.borrow().len();
+
+        for (album_id, group) in &messages.into_iter().group_by(|m| m.media_album_id()) {
+            if album_id == 0 {
+                for message in group {
+                    imp.list
+                        .borrow_mut()
+                        .push_back(ChatHistoryItem::for_message(message));
+                }
+            } else {
+                imp.list
+                    .borrow_mut()
+                    .push_back(ChatHistoryItem::for_media_group(group.collect()))
+            }
         }
 
-        let index = imp.list.borrow().len() - added;
+        let added = imp.list.borrow().len() - index;
         self.items_changed(index as u32, 0, added as u32);
     }
 
@@ -267,7 +279,7 @@ impl ChatHistoryModel {
 
         // Put this in a block, so that we only need to borrow the list once and the runtime
         // borrow checker does not panic in Self::items_changed when it borrows the list again.
-        let index = {
+        let (index, added) = {
             let mut list = imp.list.borrow_mut();
 
             // The elements in this list are ordered. While the day dividers are ordered
@@ -277,6 +289,26 @@ impl ChatHistoryModel {
                 .binary_search_by(|m| match m.type_() {
                     ChatHistoryItemType::Message(other_message) => {
                         message.id().cmp(&other_message.id())
+                    }
+                    ChatHistoryItemType::MediaGroup(media_group) => {
+                        match media_group.binary_search_by_key(&message.id(), |msg| msg.id()) {
+                            Ok(_) => Ordering::Equal,
+                            Err(pos) => {
+                                if pos == 0 {
+                                    Ordering::Less
+                                } else {
+                                    Ordering::Greater
+                                }
+                            }
+                        }
+                    }
+                    ChatHistoryItemType::DayDivider(date_time) => {
+                        glib::DateTime::from_unix_utc(message.date() as i64)
+                            .unwrap()
+                            .cmp(date_time)
+                            // We found the day divider of the message. Therefore, the message
+                            // must be among the following elements.
+                            .then(Ordering::Greater)
                     }
                     ChatHistoryItemType::DayDivider(date_time) => {
                         let ordering = glib::DateTime::from_unix_utc(message.date() as i64)
@@ -293,11 +325,38 @@ impl ChatHistoryModel {
                 })
                 .unwrap();
 
-            list.remove(index);
-            index as u32
+            let item = list.get_mut(index).unwrap();
+
+            // We remove the message from the album,
+            // If there's one message left we convert it from album to a single message
+            if let ChatHistoryItemType::MediaGroup(media_group) = item.type_() {
+                *item = if media_group.len() == 2 {
+                    let message = media_group
+                        .iter()
+                        .filter(|msg| msg.id() != message.id())
+                        .next()
+                        .unwrap()
+                        .clone();
+
+                    ChatHistoryItem::for_message(message)
+                } else {
+                    let i = media_group
+                        .binary_search_by_key(&message.id(), |msg| msg.id())
+                        .unwrap();
+
+                    let mut media_group = media_group.clone();
+                    media_group.remove(i);
+
+                    ChatHistoryItem::for_media_group(media_group)
+                };
+                (index as u32, 1)
+            } else {
+                list.remove(index);
+                (index as u32, 0)
+            }
         };
 
-        self.items_changed(index, 1, 0);
+        self.items_changed(index, 1, added);
     }
 
     pub(crate) fn chat(&self) -> Chat {

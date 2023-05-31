@@ -53,6 +53,8 @@ fn main() -> glib::ExitCode {
     let res = gio::Resource::load(RESOURCES_FILE).expect("Could not load gresource file");
     gio::resources_register(&res);
 
+    ori::init();
+
     let app = setup_cli(Application::new());
 
     // Command line handling

@@ -137,16 +137,7 @@ impl Avatar {
             return;
         }
 
-        // This should never panic as there must always be a `Sidebar` as ancestor having a
-        // `Session`.
-        let session = self
-            .ancestor(Sidebar::static_type())
-            .unwrap()
-            .downcast_ref::<Sidebar>()
-            .unwrap()
-            .session()
-            .unwrap();
-
+        let session = user.session();
         let my_id = session.me().id();
         let user_id = user.id();
         let is_online_binding = gtk::ObjectExpression::new(user)

@@ -3,6 +3,7 @@ use std::cell::RefCell;
 
 use glib::WeakRef;
 use gtk::glib;
+use gtk::glib::value::ValueType;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use once_cell::sync::Lazy;
@@ -72,6 +73,7 @@ mod imp {
         pub(super) can_be_deleted_for_all_users: Cell<bool>,
         pub(super) sending_state: RefCell<Option<BoxedMessageSendingState>>,
         pub(super) date: Cell<i32>,
+        pub(super) media_album_id: Cell<i64>,
         pub(super) content: RefCell<Option<BoxedMessageContent>>,
         pub(super) is_edited: Cell<bool>,
         pub(super) interaction_info: OnceCell<MessageInteractionInfo>,
@@ -111,6 +113,9 @@ mod imp {
                         .read_only()
                         .build(),
                     glib::ParamSpecInt::builder("date").read_only().build(),
+                    glib::ParamSpecInt64::builder("media-group-id")
+                        .read_only()
+                        .build(),
                     glib::ParamSpecBoxed::builder::<BoxedMessageContent>("content")
                         .read_only()
                         .build(),
@@ -149,6 +154,7 @@ mod imp {
                 "can-be-deleted-for-all-users" => obj.can_be_deleted_for_all_users().to_value(),
                 "sending-state" => obj.sending_state().to_value(),
                 "date" => obj.date().to_value(),
+                "media-album-id" => obj.media_album_id().to_value(),
                 "content" => obj.content().to_value(),
                 "is-edited" => obj.is_edited().to_value(),
                 "interaction-info" => obj.interaction_info().to_value(),
@@ -189,6 +195,7 @@ impl Message {
             .set(td_message.can_be_deleted_for_all_users);
         imp.sending_state.replace(sending_state);
         imp.date.set(td_message.date);
+        imp.media_album_id.set(td_message.media_album_id);
         imp.content.replace(Some(content));
         imp.is_edited.set(is_edited);
         imp.interaction_info
@@ -256,6 +263,10 @@ impl Message {
 
     pub(crate) fn date(&self) -> i32 {
         self.imp().date.get()
+    }
+
+    pub(crate) fn media_album_id(&self) -> i64 {
+        self.imp().media_album_id.get()
     }
 
     pub(crate) fn content(&self) -> BoxedMessageContent {

@@ -14,6 +14,7 @@ use crate::session::content::ChatHistoryItemType;
 use crate::session::content::EventRow;
 use crate::session::content::MessageRow;
 use crate::strings;
+use crate::tdlib::Message;
 use crate::tdlib::SponsoredMessage;
 
 mod imp {
@@ -119,6 +120,9 @@ impl ChatHistoryRow {
                             _ => self.update_or_create_message_row(message.to_owned().upcast()),
                         }
                     }
+                    ChatHistoryItemType::MediaGroup(media_group) => {
+                        self.update_or_create_album(media_group.to_owned());
+                    }
                     ChatHistoryItemType::DayDivider(date) => {
                         let fmt = if date.year() == glib::DateTime::now_local().unwrap().year() {
                             // Translators: This is a date format in the day divider without the year
@@ -154,6 +158,16 @@ impl ChatHistoryRow {
             Some(child) => child.set_message(message),
             None => {
                 let child = MessageRow::new(&message);
+                self.set_child(Some(&child));
+            }
+        }
+    }
+
+    fn update_or_create_album(&self, album: Vec<Message>) {
+        match self.child().and_then(|w| w.downcast::<MessageRow>().ok()) {
+            Some(child) => child.set_media_group(album),
+            None => {
+                let child = MessageRow::for_album(album);
                 self.set_child(Some(&child));
             }
         }
